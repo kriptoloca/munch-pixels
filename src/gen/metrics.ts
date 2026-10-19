@@ -7,14 +7,19 @@ import { solveFrom } from './solve';
 /** Node limit of the exact search behind `firstMoveTraps`, per first move. */
 export const TRAP_NODE_LIMIT = 4000;
 
-/** A player who taps a uniformly random legal lane until the level ends. */
-export function randomPlayout(rules: LevelRules | Game, rng: Rng): boolean {
+/**
+ * A player who taps a uniformly random legal lane until the level ends; won or not. `taps`, when
+ * given, receives the lanes tapped (the dev hook that looks for a losing order).
+ */
+export function randomPlayout(rules: LevelRules | Game, rng: Rng, taps?: number[]): boolean {
   const g = rules instanceof Game ? rules.clone() : new Game(rules, { history: false });
   while (g.status === 'playing') {
     const legal: number[] = [];
     for (let lane = 0; lane < g.lanes.length; lane++) if (g.check(lane) === 'ok') legal.push(lane);
     if (legal.length === 0) return false;
-    g.tap(rng.pick(legal));
+    const lane = rng.pick(legal);
+    taps?.push(lane);
+    g.tap(lane);
   }
   return g.status === 'won';
 }
@@ -85,4 +90,18 @@ export function measure(
     firstMoveTraps: firstMoveTraps(rules),
     taps,
   };
+}
+
+/**
+ * A tap order that loses the level (dev hook and e2e: the lose panel must be reachable through
+ * real taps): the first lost random playout over `tries` seeds, or null.
+ */
+export function findLosingTaps(rules: LevelRules, tries: number, seed: number): number[] | null {
+  const start = new Game(rules, { history: false });
+  const rng = new Rng(seed);
+  for (let t = 0; t < tries; t++) {
+    const taps: number[] = [];
+    if (!randomPlayout(start, rng, taps)) return taps;
+  }
+  return null;
 }

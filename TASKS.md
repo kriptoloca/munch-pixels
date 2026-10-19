@@ -40,9 +40,11 @@ Port the toolchain and the platform layer from Peek & Find (same versions).
 - `game/scenes/GameScene.ts`: snack canvas texture, slots, dens with queues, taps, resolve,
   bite animation (graybox timing), win and lose panels, retry, next level, save progress.
 - Debug hooks: state, tap points of lane fronts, `solution` of the current level.
+- `game/timeline.ts` (pure playback of the rules' events, docs/questions.md Epic 3) and the
+  Pages workflow for `/test/` (moved here from Epic 6 so M1 can be checked on a phone).
 - AC: e2e plays level 1 by the stored solution through real taps → win → level 2 saved; a
   losing order on a trap level → lose panel → retry restarts the level; 9:16, 1:1, 16:9 lay out
-  without overlap (layout tests).
+  without overlap (layout tests); rapid taps through a long level leave no muncher behind.
 
 ## Epic 4 — Feel and art (M2)
 - `game/feel.ts` constants (GDD §3a), procedural muncher and face textures, bite stream, crumbs,
@@ -63,6 +65,6 @@ Port the toolchain and the platform layer from Peek & Find (same versions).
 ## Epic 6 — Title, brand, store, release (M3)
 - Title screen, brand marks, thumbnails and screenshots scripts, store listing (`design:ux-copy`),
   share button for web portals (Web Share API / download; hidden on YouTube), certification
-  checklist, Pages deploy of `/test/`, `npm run zip`.
+  checklist, `npm run zip` (the Pages deploy of `/test/` arrived in Epic 3).
 - AC: ZIP within limits with SHA in `docs/store/submission.md`; screenshots in three aspects;
   Hasan: Playgama upload and QA tool, phone check.

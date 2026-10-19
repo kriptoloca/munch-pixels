@@ -21,8 +21,17 @@ test('?level=N jumps into that level (dev shortcut)', async ({ page }) => {
   expect(game.messages.filter((m) => m === 'game_ready')).toHaveLength(1);
 });
 
-test('the production build carries no debug hooks', async ({ page }) => {
+test('the production build carries no debug hooks', async ({ page, request }) => {
   await page.goto('./', { waitUntil: 'load' });
   await page.waitForTimeout(3000);
   expect(await page.evaluate(() => typeof window.__munchDebug)).toBe('undefined');
+  // nor their code: the shipped scripts never mention them
+  const html = await (await request.get('./')).text();
+  const scripts = [...html.matchAll(/src="\.\/(assets\/[^"]+\.js)"/g)].map((m) => m[1] ?? '');
+  expect(scripts.length).toBeGreaterThan(0);
+  for (const src of scripts) {
+    const js = await (await request.get(`./${src}`)).text();
+    expect(js, src).not.toContain('__munchDebug');
+    expect(js, src).not.toContain('losingTaps');
+  }
 });

@@ -1,0 +1,82 @@
+# Publishes the game to GitHub Pages so it can be opened on a phone without a LAN dev server:
+#   https://kriptoloca.github.io/munch-pixels/        production build (what the ZIP will contain)
+#   https://kriptoloca.github.io/munch-pixels/test/   development-mode build: dev shortcuts
+#                                                      (?level=, ?reset=1, ?fakeads=1,
+#                                                      __munchDebug) enabled
+# Both run on the Bridge "mock" platform (no ads, localStorage saves) because the host is not
+# YouTube. Pages has to be switched on once by a repository admin (Settings → Pages → Source:
+# "GitHub Actions"; a private repository needs a paid plan, otherwise make it public). Until then
+# the build still runs and the deployment is skipped with a warning instead of failing.
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  # a running deployment is never cut off; the next push waits its turn
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.pages.outcome == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/build-test.mjs
+      - run: node scripts/audit-dist.mjs
+      - id: pages
+        uses: actions/configure-pages@v5
+        with:
+          # Creates the Pages site on first run (works once the repository is public).
+          enablement: true
+        continue-on-error: true
+      - if: steps.pages.outcome != 'success'
+        run: echo "::warning::GitHub Pages is not enabled for this repository (Settings → Pages → Source → GitHub Actions). Build OK, deployment skipped."
+      - if: steps.pages.outcome == 'success'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    if: needs.build.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+  # The published links, opened in a real browser from the player's side (tests/e2e).
+  e2e-live:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env:
+          E2E_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-live-screenshots
+          path: test-results
+          retention-days: 7

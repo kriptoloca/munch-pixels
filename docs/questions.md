@@ -37,11 +37,9 @@ Every deviation from the spec, every assumption, with the reason. Newest at the 
   make wrong: a muncher behind the front shakes its head (`nope`, 8 ms), and its lane's front
   bobs to show which one to tap (GDD §3 and §3a updated; `pebblit-game-craft`: failure stays
   local and soft).
-- **Animation runs on a timeline per slot, the rules resolve at once (decided for Epic 3).** The
-  rules return all events of a tap immediately; the scene plays them back per slot: a muncher
-  hops into a slot only after the slot's previous occupant has visibly left, and a tap that
-  needs a slot whose bites are still playing fast-forwards that slot. Input stays open, so the
-  player never waits on an animation and the screen never shows two munchers in one slot.
+- **Animation runs on a timeline, the rules resolve at once (decided for Epic 3, built as
+  below).** The rules return all events of a tap immediately; the scene plays them back in order
+  and input stays open, so the player never waits on an animation.
 - **The outline (`d`, ink 0x161a26) from level 4 on.** Without it the generated levels were too
   easy to be a game: a random tapper won almost every one (average random win ≈ 1 in the first
   build), because every colour was exposed from the start. A one-pixel outline buries every
@@ -99,6 +97,74 @@ Every deviation from the spec, every assumption, with the reason. Newest at the 
     and that the face ignores the snack's outline (it shows whole at the win).
 - **Storage load has a 4 s timeout** (`LOAD_TIMEOUT_MS`): a host storage call that never settles
   would otherwise hold Boot and GameReady forever; the game starts with a fresh save instead.
+
+## 2026-10-19 (Epic 3: graybox loop, M1)
+
+- **The timeline, as built (`src/game/timeline.ts`).** One tap's events play in their own order
+  (hop; bites 70 ms apart once it landed; a chain wake after the bites that opened it; a leave
+  or wait when its last bite landed; win and lose after everything plus their beat). A new tap
+  first squeezes everything still pending from earlier taps into 150 ms, keeping the order, so
+  causality holds across taps (no pixel leaves before the one that uncovered it) and the new
+  hop starts at once. Simpler and safer than per-slot timelines, which can show a pixel
+  leaving before its cover; the cost is that fast tapping shortens earlier bite streams, which
+  is what an impatient player asks for.
+- **Slot actions name their muncher (`who` = lane:index).** Found on a screenshot of rapid
+  taps: a new muncher could sit in a slot (rules) while the previous one was still leaving on
+  screen; the old muncher's squeezed "full" then sent the new one away, and ghost munchers
+  stayed on the win screen. The scene now keys views by muncher, not by slot; a timeline test
+  and the rapid-tap e2e (no views left at the win) guard it.
+- **Panels and the Title act on a press that began on them** (a press from before the panel
+  opened, or held through a pause, never counts).
+- **Pause in Epic 3 already freezes** the scene clock and every tween and gates input
+  (`bindPauseGrace`); the dim overlay and the pause menu stay in Epic 5.
+- **Graybox look:** discs in the snack colours with the remaining appetite as a digit and a
+  light ring (ink munchers vanished on the dark page without it); uneaten pixels as bevelled
+  tiles (8 canvas px per cell, NEAREST), the face flat under them. Art in Epic 4.
+- **Deep queues show small, the rest as "+N"** (code review, Epic 3). GDD §2 says every queue is
+  visible, but lanes run up to 18 munchers (median longest lane 11), and full-size munchers fit
+  2–4 deep. The front muncher is full size; the queue behind it shows as half-size munchers as
+  deep as the screen allows (at least four places per den on every screen, six on 9:16, up to
+  twelve), and a "+N" chip counts the rest. The planning a level asks for stays within the
+  visible depth in practice; whether the generator should cap lane length to it is an open
+  question for after the phone check (default: no cap).
+- **Layout arrangements:** portrait bands from H/W ≥ 1.5, the split landscape from W/H ≥ 1.6,
+  the square arrangement in between (a layout test sweeps every design size in 40 px steps).
+- **Clocks:** the tweens skip a stall over 200 ms as one 33 ms frame (`setLagSmooth`); the scene
+  clock gets Phaser's smoothed delta, which already replaces such a stall with an earlier frame
+  (the guard in `update` is a backstop). Either way a host hitch cannot run the flights far
+  ahead of the bites.
+- **Debug hooks live in `src/dev/game-debug.ts`**, loaded by a dynamic import in the scene's DEV
+  branch; the production scripts are checked not to contain them (smoke.spec).
+- **Epic 3 `code-review` (15 findings) and adversarial audit (0 KRİTİK, 2 YÜKSEK, 4 ORTA,
+  5 DÜŞÜK), closed:**
+  - YÜKSEK: fast taps on one lane could leave a seated muncher invisible (a fade-in killed every
+    frame never progressed); whatever moves is now drawn at full alpha at once, and the e2e
+    compares the settled screen with the rules (digits, alpha, places, amber frames, dens,
+    "+N") after rapid taps in 1:1 and a true 9:16.
+  - YÜKSEK: the Title did not re-lay out on resize (the play button left the screen after a
+    rotation); it now does, with an e2e that rotates and plays.
+  - A point inside a front muncher's circle is always the front (`pickDen`, unit-tested); the
+    first queued muncher's circle used to steal its lower edge for a nope.
+  - Retry replays the level just lost (`restart({ level })`), even if a late save read moved
+    the progress; next follows the progress.
+  - A resize under a pause waits for the resume; the nope shake is two 40 ms swings; panels
+    sit over the dens (the stuck slots and the face stay above the dim); a 250 ms guard after a
+    level starts and 300 ms after a panel opens stop a double tap from skipping the reveal or
+    playing the next level's first move.
+  - The pause e2e also proves nothing on screen moves (not only the timeline); it fails
+    without `tweens.pauseAll()`.
+- **"+N" uses a plus sign:** a symbol, not a word (nothing to translate), next to digits, which
+  CLAUDE.md rule 8 allows; the same family as the play triangle and the retry ring.
+- **Hidden part of long queues, measured (open question for the phone check):** at level start
+  the "+N" chips hold 47 % of all munchers on 9:16 (93 of 100 levels), 37 % on 16:9, 68 % on
+  1:1, 3 % on 20:9 (most current phones). They come into view as the queues move. Options if it
+  hurts on the phone: cap lane length in the generator to the visible depth (fewer, larger
+  appetites), or two queue columns per den in Epic 4. Default until Hasan's check: as built.
+- **For Epic 5:** a pending `lost` action cannot be cancelled; a +1 slot bought during the
+  600 ms stuck beat must clear it (or the lose panel would open on a level playing again).
+- **The Pages workflow moved from Epic 6 to Epic 3** (`.github/workflows/pages.yml`, ported):
+  M1 needs Hasan's phone check, and the `/test/` build carries the dev shortcuts.
+
 
 ## Open questions (defaults in force)
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { Game } from '../src/core/game';
+import { Game, replay } from '../src/core/game';
 import { SNACKS } from '../src/data/snacks';
 import { dealLanes, generate, planMunchers } from '../src/gen/generate';
 import { outline } from '../src/gen/build-levels';
 import { MAX_LANES, SLOTS, validateLevel } from '../src/gen/level';
-import { firstMoveTraps, greedyWins, randomWinRate } from '../src/gen/metrics';
+import { findLosingTaps, firstMoveTraps, greedyWins, randomWinRate } from '../src/gen/metrics';
 import {
   BANDS,
   OUTLINE_KEY,
@@ -127,6 +127,15 @@ describe('solver and metrics (GENERATOR.md §4–5)', () => {
     expect(win).toBeLessThan(0.7);
     expect(greedyWins(trap)).toBe(true);
     expect(firstMoveTraps(trap)).toBe(1);
+  });
+
+  it('findLosingTaps finds a real losing order, or null when no order loses', () => {
+    const trap = { rows: RING, lanes: [[{ c: 'g', a: 1 }], [{ c: 'r', a: 8 }]], slots: 1 };
+    const taps = findLosingTaps(trap, 50, 1);
+    expect(taps).not.toBeNull();
+    expect(replay(trap, taps ?? []).status).toBe('lost');
+    const easy = { rows: ['rrrr'], lanes: [[{ c: 'r', a: 4 }]], slots: 5 };
+    expect(findLosingTaps(easy, 50, 1)).toBeNull();
   });
 
   it('clones are independent positions', () => {

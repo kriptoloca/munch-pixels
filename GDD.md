@@ -23,7 +23,10 @@ and ends with something to send (the revealed face card).
    transparent background, a few colours.
 2. Below the snack sits a row of **5 waiting slots** (the table), and below that the **dens**:
    2–5 lanes, each a queue of munchers. Each muncher has a colour and an **appetite** (a number
-   of pixels it must eat). All queues are visible.
+   of pixels it must eat). The front muncher of each lane is big; the queue behind it shows as
+   small munchers as deep as the screen allows (6 places per lane on 9:16, 12 on 20:9, 4 on
+   1:1), and a "+N" chip counts the rest (docs/questions.md, Epic 3: an open question for the
+   phone check).
 3. The player taps the **front muncher of a lane**. It hops into the leftmost free slot.
 4. A muncher in a slot eats every pixel of its colour it can **reach** (rules in §3), in a
    fixed order, until its appetite is used up. Each bite: a pixel lifts off the snack and flies
@@ -88,9 +91,10 @@ points behind named constants in `src/game/feel.ts`, tuned on Hasan's phone.
   stretch of 10 s passes without a finish.
 - **Input stays open** during bites; taps queue nothing, they act at once (a second muncher can
   hop in while the first eats). The rules resolve at once; the scene plays them back on a
-  **timeline per slot**: a muncher hops into a slot only after the slot's previous occupant has
-  visibly left, and when a new tap needs a slot whose animation is still running, that slot's
-  remaining bites play fast (docs/questions.md, Epic 3).
+  **timeline** (`src/game/timeline.ts`): one tap's events in their own order (the hop, the bites
+  once it landed, a chain wake after the bites that opened it), and a new tap first squeezes
+  whatever is still playing from earlier taps into 150 ms, so the new muncher never waits and a
+  pixel never leaves before the one that uncovered it (docs/questions.md, Epic 3).
 - **Pause and menu** freeze every tween, timer and sound (tweens and the scene clock); a pending
   hit stop never resumes a paused game.
 - **Failure never outweighs success**: haptics and the sounds as played (file level + gain) are
@@ -181,4 +185,5 @@ pause/mute from the host stop everything; 9:16, 1:1 and 16:9 all correct; text-f
 
 Accounts, backend, leaderboard, daily level, album screen, level editor, IAP, localisation of
 UI strings beyond the ≤ 10 strings, more than two boosters, obstacles (ice, locks), hidden
-queues.
+queues as a mechanic (mystery munchers; the "+N" overflow of long queues is a screen limit, not
+a mechanic).

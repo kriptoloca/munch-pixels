@@ -118,11 +118,40 @@ function runtimePresent(): boolean {
 export function initPlatform(): Promise<Platform> {
   if (!platformPromise) {
     platformPromise = create().then((p) => {
-      current = p;
-      return p;
+      current = import.meta.env.DEV ? withDevPause(p) : p;
+      return current;
     });
   }
   return platformPromise;
+}
+
+// ---- dev: a platform pause on demand (e2e of CLAUDE.md rule 4) ---------------------------------
+
+const devPause = { paused: false, listeners: new Set<(paused: boolean) => void>() };
+
+/**
+ * Dev builds only: plays a platform pause (true) or resume (false) as if the host sent it. Does
+ * nothing in production, where the platform is never wrapped.
+ */
+export function simulatePause(paused: boolean): void {
+  if (!import.meta.env.DEV || devPause.paused === paused) return;
+  devPause.paused = paused;
+  for (const cb of devPause.listeners) cb(paused);
+}
+
+function withDevPause(p: Platform): Platform {
+  return {
+    ...p,
+    isPaused: () => devPause.paused || p.isPaused(),
+    onPause: (cb) => {
+      devPause.listeners.add(cb);
+      const off = p.onPause(cb);
+      return () => {
+        devPause.listeners.delete(cb);
+        off();
+      };
+    },
+  };
 }
 
 /** The platform after initPlatform() resolved; a stub before that. */
