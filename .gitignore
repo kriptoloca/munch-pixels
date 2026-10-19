@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.local
+.DS_Store
+*.log
+test-results/
+playwright-report/
+release/
+# generated store thumbnails (scripts/thumbnails.mjs)
+docs/store/thumbnails/
+# generated store screenshots (scripts/screenshots.mjs)
+docs/store/screenshots/
