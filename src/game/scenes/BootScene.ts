@@ -4,6 +4,7 @@ import { attachAnalyticsSink, track } from '../../platform/analytics';
 import { initPlatform } from '../../platform/bridge';
 import { SaveStore } from '../../platform/storage';
 import {
+  adoptLateSave,
   attachSaveStore,
   hydrateProgress,
   persistProgress,
@@ -61,6 +62,7 @@ export class BootScene extends Phaser.Scene {
     const store = new SaveStore(platform.storage);
     attachSaveStore(store);
     hydrateProgress(await store.load());
+    adoptLateSave(store);
     track('session_start');
 
     let target = 'Title';

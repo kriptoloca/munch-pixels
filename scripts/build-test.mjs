@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the development-mode bundle into dist/test/: the same game as production plus the dev
 // shortcuts (?level=, ?fakeads=1, ?reset=1, ?renderer=canvas) and the
-// __munchDebug hooks the e2e tests drive. Published at /test/ by pages.yml.
+// __munchDebug hooks the e2e tests drive. Published at /test/ by GitHub Pages (Epic 6).
 //
 // `vite build --mode development` alone is not enough: import.meta.env.DEV follows NODE_ENV,
 // which Vite sets to "production" for every build unless the environment says otherwise. This

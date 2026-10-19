@@ -6,6 +6,7 @@ import bridge, {
 } from '@playgama/bridge';
 import { hostedByYoutube } from './host';
 import { LocalStorageBackend, type StorageBackend } from './storage';
+import { withTimeout } from './timeout';
 
 /**
  * Thin wrapper over Playgama Bridge 2.3.1 (docs/bridge-notes.md lists every SDK name used and
@@ -63,11 +64,26 @@ const FAKE_AD_MS = 1500;
  * (the YouTube bridge opts out, `isPlatformPageVisibilityApiAllowed` false). In the Playgama
  * host an ad in the parent page blurs the game's window, and focus only returns with the next
  * tap inside the game: that tap resumes the game and, on iOS Safari, reaches Phaser after the
- * resume, so it counted as a game tap and cost a heart (sandbox report 2026-10-18). Two
+ * resume, so it counted as a game tap (Peek & Find sandbox report 2026-10-18). Two
  * measures: the game asks for focus back when an ad ends (`regainFocus`, below), and the scene
  * input stays off for a grace after every resume (src/game/resume-grace.ts). A cross-origin
  * host may refuse the focus request; then the dim stays until the first tap, which is free.
  */
+
+let loadingStopped = false;
+
+/**
+ * The first interactive screen is up (CLAUDE.md rule 3): closes the loading phase and sends
+ * GameReady, each exactly once per page, whichever scene gets there first (the Title, or the Game
+ * through the dev `?level=` shortcut). Later visits to the Title send nothing.
+ */
+export function markInteractive(p: Platform): void {
+  if (!loadingStopped) {
+    loadingStopped = true;
+    p.sendMessage('in_game_loading_stopped');
+  }
+  p.sendMessage('game_ready');
+}
 
 /** Asks the host for focus back; a no-op where the window already has it. Never throws. */
 export function regainFocus(): void {
@@ -96,24 +112,6 @@ let gameReadySent = false;
 
 function runtimePresent(): boolean {
   return typeof window !== 'undefined' && typeof window.bridge !== 'undefined';
-}
-
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const t = window.setTimeout(() => {
-      reject(new Error('timeout'));
-    }, ms);
-    p.then(
-      (v) => {
-        window.clearTimeout(t);
-        resolve(v);
-      },
-      (e: unknown) => {
-        window.clearTimeout(t);
-        reject(e instanceof Error ? e : new Error(String(e)));
-      },
-    );
-  });
 }
 
 /** Initialises the SDK once and resolves to the platform (or the stub). Never rejects. */

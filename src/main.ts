@@ -49,7 +49,8 @@ const game = new Phaser.Game({
     width: current.width,
     height: current.height,
   },
-  // Pixel art: no smoothing on the snack and the faces.
+  // Smooth by default (munchers, UI); the snack and face textures switch to NEAREST themselves so
+  // their pixels stay crisp (Epic 3).
   render: { antialias: true, pixelArt: false, roundPixels: false },
   fps: Number.isFinite(fpsMin) && fpsMin >= 1 ? { min: fpsMin } : undefined,
   scene: [BootScene, TitleScene, GameScene],

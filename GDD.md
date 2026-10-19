@@ -54,7 +54,10 @@ so "level 37 is hard" means the same thing to everyone.
   until nothing changes. Eating opens ground, so one muncher's meal can wake another.
 - **Exact appetite**: for every colour, the appetites of its munchers add up to its pixel count.
   So once every muncher is out of the dens, the snack always finishes.
-- **No free slot**: a tap on a den does nothing but a soft "nope" (§3a).
+- **Only the front muncher of a lane moves.** A tap on a muncher behind it gets a soft "nope"
+  (§3a). A playing level always has a free slot: when the slots fill up with munchers that cannot
+  eat while the dens still hold munchers, the level is lost at once (below), so "no free slot"
+  never reaches the player as a tap result.
 - **Lose** is decided after resolution: all slots taken (by munchers that cannot eat) and the
   dens are not empty.
 
@@ -70,8 +73,8 @@ points behind named constants in `src/game/feel.ts`, tuned on Hasan's phone.
 | …the last bite (full) | hit stop 45 ms, belly bounce 1.2×, happy face, burp puff, then waddle off in 300 ms | `bite` at +2 dB, then `burp` | kick 70 ms, 0.002 × (1 + 0.25 × combo step) | 12 ms |
 | A waiting muncher wakes (chain) | it jumps 30 px, eyes open wide, then eats as above | `perk` | none | none |
 | Muncher arrives and cannot eat yet | sits with mouth open, eyes look up at the snack, slot outline turns amber | soft `wait` | none | none |
-| Tap with no free slot | the front muncher shakes its head ±6 px × 2 (40 ms each); the slots flash amber 200 ms | `nope`, gain 0.5 | none | 8 ms |
-| Tap on a muncher that is not at the front | nothing (no sound) | — | — | — |
+| Tap a muncher that is not at the front | that muncher shakes its head ±6 px × 2 (40 ms each); the front muncher of its lane bobs once (it is the one to tap) | `nope`, gain 0.5 | none | 8 ms |
+| Tap an empty den, or the board | nothing (no sound) | — | — | — |
 | Last pixel (win) | its own beat: the bite lands, then 250 ms later hit stop 60 ms, the face blinks and grows 1.08× with a bounce, confetti | `win` jingle | kick 120 ms, 0.0045 | 20-40-40 ms |
 | Stuck (lose) | the waiting munchers turn their faces down, one by one 80 ms apart; the panel slides in after 600 ms | `stuck`, gain 0.6 | none | 30 ms |
 | Booster +1 slot | a sixth slot pops in with a bounce | `pop` | none | 10 ms |
@@ -84,7 +87,10 @@ points behind named constants in `src/game/feel.ts`, tuned on Hasan's phone.
 - **Micro-win cadence**: a muncher finishes every 1–3 s of play; check on a recording that no
   stretch of 10 s passes without a finish.
 - **Input stays open** during bites; taps queue nothing, they act at once (a second muncher can
-  hop in while the first eats).
+  hop in while the first eats). The rules resolve at once; the scene plays them back on a
+  **timeline per slot**: a muncher hops into a slot only after the slot's previous occupant has
+  visibly left, and when a new tap needs a slot whose animation is still running, that slot's
+  remaining bites play fast (docs/questions.md, Epic 3).
 - **Pause and menu** freeze every tween, timer and sound (tweens and the scene clock); a pending
   hit stop never resumes a paused game.
 - **Failure never outweighs success**: haptics and the sounds as played (file level + gain) are
@@ -99,6 +105,10 @@ points behind named constants in `src/game/feel.ts`, tuned on Hasan's phone.
 - **The hidden face**: under every snack sits a face (a "peeker"), generated from parts (eye
   shape, mouth, cheeks, ears, colour); it shows through the eaten cells and smiles when the snack
   is gone. 13+ and never baby-faced (no nursery palette; same rule as Peek & Find).
+- **What is left to eat always reads**: uneaten pixels are drawn as raised tiles (a light top
+  edge, a dark bottom edge), the face under them flat; and the face colours are a muted family
+  kept apart from the vivid snack colours (ΔE ≥ 18, tested). Transparent cells of the snack stay
+  board-coloured until the win, when the face fills them (the reveal).
 - Thumbnail at 128 px: one fat muncher with a pixel on its lip, a half-eaten snack, one accent.
 
 ## 5. Share

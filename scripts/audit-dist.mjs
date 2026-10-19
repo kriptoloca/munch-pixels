@@ -63,6 +63,8 @@ if (problems.length > 0) {
   for (const p of problems) console.error('  ' + p);
   process.exit(1);
 }
+const skipped = [...SKIP_FILES].join(', ');
 console.log(
-  `audit-dist: OK (${files.length} files, no external URLs outside ${[...SKIP_FILES].join(', ')}, no compressed artefacts)`,
+  `audit-dist: OK (${files.length} files, no external URLs outside ${skipped}, ` +
+    'no compressed artefacts)',
 );

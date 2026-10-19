@@ -1,3 +1,5 @@
+import { withTimeout } from './timeout';
+
 /**
  * Save model and storage (GDD §8, CLAUDE.md rule 7). The backend is an interface: the Playgama
  * Bridge storage API in production, localStorage or memory in dev and tests. Nothing in here ever
@@ -97,27 +99,79 @@ export function migrate(raw: unknown): SaveData {
   };
 }
 
+/** A host storage read that has not answered by then no longer holds Boot (and GameReady). */
+export const LOAD_TIMEOUT_MS = 4000;
+/**
+ * A read that missed LOAD_TIMEOUT_MS is still awaited this long before the first save may write
+ * without it (a storage that never answers would otherwise block every save of the session).
+ */
+export const LATE_READ_MAX_MS = 30_000;
+
+/**
+ * A save read late meets the progress made meanwhile: the furthest progress wins, the found
+ * faces are merged, and the settings come from the stored save (a toggle made during a slow
+ * first read is the only thing lost).
+ */
+export function mergeSaves(stored: SaveData, local: SaveData): SaveData {
+  return {
+    version: SAVE_VERSION,
+    level: Math.max(stored.level, local.level),
+    sound: stored.sound,
+    music: stored.music,
+    levelsCompleted: Math.max(stored.levelsCompleted, local.levelsCompleted),
+    facesFound: faces([...stored.facesFound, ...local.facesFound]),
+  };
+}
+
 export class SaveStore {
+  /** A first read that outlived LOAD_TIMEOUT_MS (null when the load answered in time). */
+  private lateRead: Promise<SaveData | null> | null = null;
+  /** The late read has finished; saves started from then on carry the merged progress. */
+  private lateSettled = false;
+
   constructor(
     private readonly backend: StorageBackend,
     private readonly key: string = SAVE_KEY,
+    private readonly timeoutMs: number = LOAD_TIMEOUT_MS,
+    private readonly lateMaxMs: number = LATE_READ_MAX_MS,
   ) {}
 
-  /** Never rejects: any failure yields a fresh default save. */
+  /**
+   * Never rejects and never hangs: a failure, an empty store or a timeout yields a fresh default
+   * save. After a timeout the read goes on; `late()` delivers it and `save()` merges with it.
+   */
   async load(): Promise<SaveData> {
+    const read = this.read();
     try {
-      const raw = await this.backend.get(this.key);
-      if (!raw) return defaultSave();
-      return migrate(JSON.parse(raw) as unknown);
+      return (await withTimeout(read, this.timeoutMs)) ?? defaultSave();
     } catch {
+      this.lateRead = withTimeout(read, this.lateMaxMs).catch(() => null);
+      // Attached first, so it runs before any save waiting on the same read continues.
+      void this.lateRead.then(() => {
+        this.lateSettled = true;
+      });
       return defaultSave();
     }
   }
 
-  /** Never rejects: returns false when the backend failed. */
+  /** The stored save once a timed-out first read has finished; null when there is none. */
+  late(): Promise<SaveData | null> {
+    return this.lateRead ?? Promise.resolve(null);
+  }
+
+  /**
+   * Never rejects: returns false when the backend failed. A save started while a late first read
+   * is still on its way waits for it and writes the merge (`mergeSaves`), so a slow store never
+   * loses the player's real progress to the fresh save Boot started with.
+   */
   async save(data: SaveData): Promise<boolean> {
+    let out = data;
+    if (this.lateRead && !this.lateSettled) {
+      const stored = await this.lateRead;
+      if (stored) out = mergeSaves(stored, data);
+    }
     try {
-      await this.backend.set(this.key, JSON.stringify(data));
+      await this.backend.set(this.key, JSON.stringify(out));
       return true;
     } catch {
       return false;
@@ -129,6 +183,17 @@ export class SaveStore {
       await this.backend.set(this.key, '');
     } catch {
       // ignore
+    }
+  }
+
+  /** The stored save, or null when the store is empty, unreadable or holds garbage. */
+  private async read(): Promise<SaveData | null> {
+    try {
+      const raw = await this.backend.get(this.key);
+      if (!raw) return null;
+      return migrate(JSON.parse(raw) as unknown);
+    } catch {
+      return null;
     }
   }
 }

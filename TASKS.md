@@ -31,7 +31,9 @@ Port the toolchain and the platform layer from Peek & Find (same versions).
   first levels), `gen/rng.ts`, `gen/params.ts` (bands), `gen/generate.ts`, `gen/solve.ts`,
   `gen/metrics.ts`, `gen/face.ts`, `gen/build-levels.ts`, `scripts/levels.mjs`.
 - AC: `npm run levels` → 100 levels, all valid, all replay to a win; moving-average difficulty
-  rises; determinism; `levels:check` reproduces; generator invariants over 200 seeds per band.
+  rises (band averages strictly rise, and the 10-level moving average never falls more than
+  one breather (`BREATHER_DROP`, 0.15) below its running best: the sawtooth dips, the curve does not); determinism;
+  `levels:check` reproduces; generator invariants over 200 seeds per band.
 
 ## Epic 3 — Graybox loop (M1)
 - `game/layout.ts` (portrait/landscape/square; snack square, slot row, dens, HUD), pure + tests.
@@ -47,7 +49,7 @@ Port the toolchain and the platform layer from Peek & Find (same versions).
   belly swell, full-meal hit stop and kick, combo step, chain wake, waiting face, nope wobble,
   win reveal, stuck faces; synthesized sounds (`scripts/audio.mjs`); haptics.
 - AC: unit tests (success outweighs failure: haptics, sounds as played); e2e feel log (bites
-  ascend in pitch, a full meal logs a kick, a no-slot tap logs no shake); muted 10-second
+  ascend in pitch, a full meal logs a kick, a tap on a muncher behind the front logs a nope and no camera shake); muted 10-second
   capture of level 20 attached to PROGRESS.
 
 ## Epic 5 — Platform, boosters and ads

@@ -1,6 +1,6 @@
 /**
  * Dev-only hooks for the e2e tests (`window.__munchDebug`). Installed by the active scene inside
- * `if (import.meta.env.DEV)`, so production builds drop them (links.spec checks the absence).
+ * `if (import.meta.env.DEV)`, so production builds drop them (smoke.spec checks the absence).
  */
 export interface DebugPoint {
   x: number;

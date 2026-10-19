@@ -36,7 +36,7 @@ export interface Seated {
   lane: number;
   /** Position in its lane (0 = was the front at the start). */
   index: number;
-  /** Bites taken so far (the n of the next bite is eaten + 1). */
+  /** Bites taken since it sat down, across waits (the n of the next bite is eaten + 1). */
   eaten: number;
   /** It sat down unable to finish, and has not eaten since (GDD §3a waiting face). */
   waiting: boolean;
@@ -54,7 +54,7 @@ export type GameEvent =
 export type Status = 'playing' | 'won' | 'lost';
 export type TapResult = 'ok' | 'no-slot' | 'empty-lane' | 'over';
 
-/** Boosters per level (GDD §7). */
+/** Boosters per level (GDD §7); rule constants live with the rules. */
 export const EXTRA_SLOTS_PER_LEVEL = 1;
 export const UNDOS_PER_LEVEL = 3;
 
@@ -63,12 +63,13 @@ interface Snapshot {
   fronts: number[];
   slots: (Seated | null)[];
   status: Status;
+  peakSlots: number;
 }
 
 export class Game {
   readonly keys: string[];
   /** Lanes as colour indices and appetites. */
-  readonly lanes: readonly (readonly { colour: number; appetite: number }[])[];
+  readonly lanes: { colour: number; appetite: number }[][];
   board: Board;
   fronts: number[];
   slots: (Seated | null)[];
@@ -79,8 +80,11 @@ export class Game {
   /** Most slots occupied at once (right after a muncher sat down). */
   peakSlots = 0;
   private readonly history: Snapshot[] = [];
+  /** Player games keep undo snapshots; the generator, the solver and playouts do not need them. */
+  private readonly keepHistory: boolean;
 
-  constructor(level: LevelRules) {
+  constructor(level: LevelRules, opts: { history?: boolean } = {}) {
+    this.keepHistory = opts.history ?? true;
     const parsed = parsePicture(level.rows);
     this.keys = parsed.keys;
     this.board = parsed.board;
@@ -94,6 +98,43 @@ export class Game {
     );
     this.fronts = this.lanes.map(() => 0);
     this.slots = new Array<Seated | null>(level.slots).fill(null);
+  }
+
+  /**
+   * Generator only (src/gen/generate.ts plans a solution by growing one lane while it plays it):
+   * appends a muncher to the back of a lane. Not undoable (the generator never undoes).
+   */
+  append(lane: number, m: MuncherSpec): void {
+    const colour = this.keys.indexOf(m.c);
+    const l = this.lanes[lane];
+    if (!l || colour === -1 || !Number.isInteger(m.a) || m.a < 1) {
+      throw new Error(`cannot append ${m.c}${String(m.a)} to lane ${String(lane)}`);
+    }
+    l.push({ colour, appetite: m.a });
+  }
+
+  /**
+   * An independent copy of the position (search and playouts), without undo history. Built
+   * without the constructor (no re-parse of the picture); tests/gen.test.ts checks that every
+   * field is copied, so a new field cannot be forgotten here silently.
+   */
+  clone(): Game {
+    const g = Object.create(Game.prototype) as Game;
+    Object.assign(g, {
+      keys: this.keys,
+      lanes: this.lanes.map((l) => [...l]),
+      board: cloneBoard(this.board),
+      fronts: [...this.fronts],
+      slots: this.slots.map((s) => (s ? { ...s } : null)),
+      status: this.status,
+      extraSlotsUsed: this.extraSlotsUsed,
+      undosUsed: this.undosUsed,
+      taps: this.taps,
+      peakSlots: this.peakSlots,
+      history: [],
+      keepHistory: false,
+    });
+    return g;
   }
 
   /** The muncher at the front of a lane, or null when the lane is empty. */
@@ -112,7 +153,11 @@ export class Game {
     return this.slots.indexOf(null);
   }
 
-  /** What a tap on this lane would do, without doing it. */
+  /**
+   * What a tap on this lane would do, without doing it. `no-slot` is a guard only: after every
+   * resolve, full slots with munchers left in the dens mean the level is lost (`over`), so a
+   * playing level always has a free slot (docs/questions.md, audit 2026-10-19).
+   */
   check(lane: number): TapResult {
     if (this.status !== 'playing') return 'over';
     if (!this.front(lane)) return 'empty-lane';
@@ -124,7 +169,7 @@ export class Game {
   tap(lane: number): { result: TapResult; events: GameEvent[] } {
     const result = this.check(lane);
     if (result !== 'ok') return { result, events: [] };
-    this.history.push(this.snapshot());
+    if (this.keepHistory) this.history.push(this.snapshot());
     const spec = this.front(lane) as { colour: number; appetite: number };
     const slot = this.freeSlot();
     const index = this.fronts[lane] as number;
@@ -151,12 +196,14 @@ export class Game {
    * "wakes"; one that sat waiting from an earlier turn does.
    */
   private resolve(events: GameEvent[]): void {
+    // Open ground changes only when something is eaten, so it is recomputed only then.
+    let open = openGround(this.board);
     for (;;) {
       let changed = false;
       for (let s = 0; s < this.slots.length; s++) {
         const m = this.slots[s];
         if (!m) continue;
-        const order = reachable(this.board, m.colour, openGround(this.board));
+        const order = reachable(this.board, m.colour, open);
         const k = Math.min(m.remaining, order.length);
         if (k === 0) continue;
         if (m.waiting) {
@@ -174,6 +221,7 @@ export class Game {
           this.slots[s] = null;
           events.push({ kind: 'full', slot: s });
         }
+        open = openGround(this.board);
         changed = true;
       }
       if (!changed) break;
@@ -219,6 +267,7 @@ export class Game {
     while (slots.length < this.slots.length) slots.push(null);
     this.slots = slots;
     this.status = snap.status;
+    this.peakSlots = snap.peakSlots;
     this.taps -= 1;
     return true;
   }
@@ -229,6 +278,7 @@ export class Game {
       fronts: [...this.fronts],
       slots: this.slots.map((s) => (s ? { ...s } : null)),
       status: this.status,
+      peakSlots: this.peakSlots,
     };
   }
 }

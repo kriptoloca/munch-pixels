@@ -129,15 +129,15 @@ export function reachable(b: Board, colour: number, open: Uint8Array = openGroun
       order.push(i);
     }
   }
+  const visit = (j: number): void => {
+    if (seen[j] === 1 || cells[j] !== colour) return;
+    seen[j] = 1;
+    order.push(j);
+  };
   for (let head = 0; head < order.length; head++) {
     const i = order[head] as number;
     const x = i % w;
     const y = (i - x) / w;
-    const visit = (j: number): void => {
-      if (seen[j] === 1 || cells[j] !== colour) return;
-      seen[j] = 1;
-      order.push(j);
-    };
     if (y > 0) visit(i - w);
     if (x > 0) visit(i - 1);
     if (x < w - 1) visit(i + 1);

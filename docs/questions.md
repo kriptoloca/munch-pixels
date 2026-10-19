@@ -28,9 +28,85 @@ Every deviation from the spec, every assumption, with the reason. Newest at the 
   every level gets its own face at no content cost; hand-drawn joke pairs (apple → worm) are a
   v0.2 candidate.
 
+## 2026-10-19 (Epics 1–2: rules and content pipeline)
+
+- **"No free slot" never reaches the player, so the nope moved.** After every resolve, full slots
+  with munchers still in the dens are a loss, so a playing level always has a free slot (property
+  test over 2000 random levels in `tests/core-props.test.ts`). `Game.check` keeps `no-slot` as a
+  guard only. The soft failure the Feel spec wanted now goes to the tap a player can actually
+  make wrong: a muncher behind the front shakes its head (`nope`, 8 ms), and its lane's front
+  bobs to show which one to tap (GDD §3 and §3a updated; `pebblit-game-craft`: failure stays
+  local and soft).
+- **Animation runs on a timeline per slot, the rules resolve at once (decided for Epic 3).** The
+  rules return all events of a tap immediately; the scene plays them back per slot: a muncher
+  hops into a slot only after the slot's previous occupant has visibly left, and a tap that
+  needs a slot whose bites are still playing fast-forwards that slot. Input stays open, so the
+  player never waits on an animation and the screen never shows two munchers in one slot.
+- **The outline (`d`, ink 0x161a26) from level 4 on.** Without it the generated levels were too
+  easy to be a game: a random tapper won almost every one (average random win ≈ 1 in the first
+  build), because every colour was exposed from the start. A one-pixel outline buries every
+  inner colour until it is eaten through, so the order of taps starts to matter. It also reads
+  as a sticker edge around the snack. Levels 1–3 keep the bare snack (teaching).
+- **Runs in the dealing (`runChance`).** The second lever: a planned muncher may queue behind the
+  previous one, so the other lanes' fronts belong to later moves (the traps). Together with the
+  outline the band averages of difficulty now rise from 0.10 to ≈ 0.5 (PROGRESS.md).
+- **Bands differ from the first GENERATOR §6 table:** an outline column, `runChance` per band,
+  band 5 appetite 2–6 (smaller munchers, more taps, more decisions), no snack size/colour column
+  (the snack order decides it). GENERATOR §6 now holds the table as built.
+- **Second round for levels that stay too easy, and planning peaks.** The first build left 30 of
+  100 levels outside their target, most of them below it (snacks with 3 colours: cheese, cookie,
+  strawberry, at 0.05–0.15 in bands 4–5). A level whose best candidate is below the target now
+  gets 24 more seeds with harder dealing (`escalate`). From level 20 every 10th level prefers a
+  candidate the greedy player loses: a few levels ask for planning (Flow pillar: tension saved
+  for a few moves).
+- **Board colour `0x4a5472`** (slate): every snack colour and the dark outline read against it;
+  pure black would swallow the outline.
+- **`Game.append` and `Game.clone`.** The generator plans by growing one lane while it plays it
+  on the real rules (append, not undoable), and the solver and playouts search on clones without
+  the undo history; replaying from scratch for every node was slow. Both are covered by tests.
+- **`sharp` stays a dev dependency** (copied from Peek & Find): the Epic 5 e2e that checks the
+  pause dim measures screenshot pixels with it. No other use.
+- **`firstMoveTraps` is 0 on every level** with 5 slots (no first tap can lose yet); the traps sit
+  later. Kept as a metric for levels with fewer slots; difficulty rests on the random win rate
+  and the greedy player.
+- **Epic 1–2 code review (2026-10-19), closed:** a late save read is merged instead of being
+  overwritten (`mergeSaves`, `adoptLateSave`; settings come from the stored save, the furthest
+  progress wins); the hidden face moved to a muted family at least ΔE 18 from every snack colour
+  (the old one reused cream, red and pink exactly, so revealed eyes looked like pixels left to
+  eat), and uneaten pixels render as raised tiles (GDD §4); the outline no longer inks enclosed
+  holes (the donut keeps its hole); planning peaks rank a greedy loss before the target
+  distance; the lane count has its own random stream (it was tied to the first planned wait);
+  player-only undo snapshots and shared open ground make the level build faster; the purity
+  lint also bans `Date`, `crypto` and timers; `bindPauseGrace` and `markInteractive` are
+  tested. The band appetite range is a target, documented in GENERATOR §3.
+- **Epic 1–2 adversarial audit (2026-10-19): 0 KRİTİK, 0 YÜKSEK, 1 ORTA, 8 DÜŞÜK; all closed.**
+  Its own rules implementation agreed with src/core on 3,963 random boards (158,520 actions,
+  0 mismatches), the solver agreed with brute force on 551 levels, every level replays to a win.
+  - ORTA, difficulty fell from levels 61–70 to 71–80: the snack cycle put the light snacks
+    (apple, cheese, strawberry, cookie…) on hard levels, where even harder dealing cannot lift
+    them. Now the light snacks only come on breather levels after level 30 (`LIGHT_SNACKS`), and
+    a test bounds the dip of the 10-level moving average.
+  - The stored difficulty was a 120-playout estimate (±0.045); stored metrics now use 1000
+    playouts (±0.016) while the search keeps the quick estimate.
+  - 200 seeds per band in the generator test (it ran 40); it found a real edge: runs could leave
+    a lane empty on a small snack (the build retried another seed). Dealing now gives every empty
+    lane one of the last munchers.
+  - The Title's play button acts only on a press that began on it while input was on (a press
+    held through a pause no longer starts the game); the Game's panels got the same rule.
+  - Purity lint also bans `node:*`, `crypto`, `perf_hooks`, `timers` imports and `globalThis`;
+    `.gitattributes` keeps LF so `levels:check` holds on Windows checkouts; a property test mixes
+    taps, undos and +1 slot against a replay; GENERATOR §3 and §7 document the appetite edge
+    and that the face ignores the snack's outline (it shows whole at the win).
+- **Storage load has a 4 s timeout** (`LOAD_TIMEOUT_MS`): a host storage call that never settles
+  would otherwise hold Boot and GameReady forever; the game starts with a fresh save instead.
+
 ## Open questions (defaults in force)
 
 - Final name — default "Munch Pixels" (working title); check stores and portals before the
   listing.
 - Colour-blind support — default distinct hue + lightness; shape marks if testers struggle.
 - After level 100 — default: the last level repeats in v0.1; endless seeds in v0.2.
+- How hard is hard for a person? The difficulty signal is a random tapper; a careful (greedy)
+  player wins most levels (≈ 90 % in the first build). Default: keep the bands as built and the
+  planning peaks; after M1 Hasan plays levels 1–30 on the phone and we move the band targets if
+  the game feels too easy or too hard (no human data before that).

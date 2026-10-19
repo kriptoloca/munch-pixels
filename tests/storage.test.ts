@@ -6,6 +6,7 @@ import {
   SAVE_VERSION,
   SaveStore,
   defaultSave,
+  mergeSaves,
   migrate,
   type StorageBackend,
 } from '../src/platform/storage';
@@ -75,5 +76,76 @@ describe('SaveStore', () => {
     const corrupt = new MemoryBackend();
     await corrupt.set(SAVE_KEY, '{not json');
     expect(await new SaveStore(corrupt).load()).toEqual(defaultSave());
+  });
+
+  it('a backend that never answers cannot hold the boot: load gives a fresh save', async () => {
+    const hanging: StorageBackend = {
+      get: () => new Promise<string | null>(() => undefined),
+      set: () => Promise.resolve(),
+    };
+    expect(await new SaveStore(hanging, SAVE_KEY, 20).load()).toEqual(defaultSave());
+  });
+
+  it('a read that answers after the timeout is merged, never overwritten', async () => {
+    const stored = {
+      ...defaultSave(),
+      level: 57,
+      levelsCompleted: 60,
+      sound: false,
+      facesFound: [3],
+    };
+    let answer: (v: string) => void = () => undefined;
+    const written: string[] = [];
+    const slow: StorageBackend = {
+      get: () =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve;
+        }),
+      set: (_k, v) => {
+        written.push(v);
+        return Promise.resolve();
+      },
+    };
+    const store = new SaveStore(slow, SAVE_KEY, 20, 10_000);
+    expect(await store.load()).toEqual(defaultSave());
+    // the player wins level 1 on the fresh save while the real one is still on its way
+    const saving = store.save({ ...defaultSave(), level: 2, levelsCompleted: 1, facesFound: [1] });
+    answer(JSON.stringify(stored));
+    expect(await saving).toBe(true);
+    expect(JSON.parse(written[0] as string)).toEqual({
+      ...stored,
+      facesFound: [1, 3],
+    });
+    expect(await store.late()).toEqual(stored);
+  });
+
+  it('a store that never answers holds the saves until LATE_READ_MAX, then writes', async () => {
+    const written: string[] = [];
+    const hanging: StorageBackend = {
+      get: () => new Promise<string | null>(() => undefined),
+      set: (_k, v) => {
+        written.push(v);
+        return Promise.resolve();
+      },
+    };
+    const store = new SaveStore(hanging, SAVE_KEY, 10, 30);
+    await store.load();
+    expect(await store.save({ ...defaultSave(), level: 4 })).toBe(true);
+    expect(JSON.parse(written[0] as string)).toMatchObject({ level: 4 });
+    expect(await store.late()).toBeNull();
+  });
+
+  it('mergeSaves: furthest progress wins, faces merge, settings come from the store', () => {
+    const merged = mergeSaves(
+      { ...defaultSave(), level: 9, levelsCompleted: 3, music: false, facesFound: [2, 5] },
+      { ...defaultSave(), level: 12, levelsCompleted: 2, facesFound: [5, 7] },
+    );
+    expect(merged).toEqual({
+      ...defaultSave(),
+      level: 12,
+      levelsCompleted: 3,
+      music: false,
+      facesFound: [2, 5, 7],
+    });
   });
 });

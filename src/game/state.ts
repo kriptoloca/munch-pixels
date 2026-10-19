@@ -1,4 +1,4 @@
-import { defaultSave, type SaveData, type SaveStore } from '../platform/storage';
+import { defaultSave, mergeSaves, type SaveData, type SaveStore } from '../platform/storage';
 
 /**
  * The player's progress in memory and its persistence (GDD §8). Scenes read and change
@@ -14,6 +14,16 @@ export function attachSaveStore(s: SaveStore | null): void {
 
 export function hydrateProgress(data: SaveData): void {
   Object.assign(progress, data, { facesFound: [...data.facesFound] });
+}
+
+/**
+ * A first read that missed the boot timeout lands later: its progress is merged into the running
+ * one (the furthest level wins), so a slow host store never sends the player back to level 1.
+ */
+export function adoptLateSave(s: SaveStore): void {
+  void s.late().then((stored) => {
+    if (stored) hydrateProgress(mergeSaves(stored, progress));
+  });
 }
 
 export function persistProgress(): void {

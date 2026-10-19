@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { installDebug, toScreen, uninstallDebug } from '../../dev/debug';
-import { getPlatform, sentPlatformMessages } from '../../platform/bridge';
-import { ResumeGrace } from '../resume-grace';
+import { getPlatform, markInteractive, sentPlatformMessages } from '../../platform/bridge';
+import { ResumeGrace, bindPauseGrace } from '../resume-grace';
 import { progress } from '../state';
 
 const PLAY_RADIUS = 150;
@@ -42,16 +42,20 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.grace.reset();
     const platform = getPlatform();
-    const unsubscribe = platform.onPause((paused) => {
-      if (paused) this.grace.pause();
-      else this.grace.resume();
+    const unsubscribe = bindPauseGrace(this.grace, platform);
+    // A press must start on the button while input is on: a press held through a pause and
+    // released after the grace never counts (CLAUDE.md rule 4; audit 2026-10-19).
+    const onPlay = (p: Phaser.Input.Pointer): boolean =>
+      Phaser.Math.Distance.Between(p.x, p.y, this.play.x, this.play.y) <= PLAY_RADIUS;
+    let pressed = false;
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => {
+      pressed = onPlay(p);
     });
     this.input.on(Phaser.Input.Events.POINTER_UP, (p: Phaser.Input.Pointer) => {
-      if (Phaser.Math.Distance.Between(p.x, p.y, this.play.x, this.play.y) <= PLAY_RADIUS) {
-        this.scene.start('Game');
-      }
+      const go = pressed && onPlay(p);
+      pressed = false;
+      if (go) this.scene.start('Game');
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       unsubscribe();
@@ -74,7 +78,6 @@ export class TitleScene extends Phaser.Scene {
             : null,
       });
     }
-    platform.sendMessage('in_game_loading_stopped');
-    platform.sendMessage('game_ready');
+    markInteractive(platform);
   }
 }

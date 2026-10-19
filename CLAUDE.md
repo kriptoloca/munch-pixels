@@ -55,7 +55,8 @@ steps), then `docs/questions.md` (decisions that override the spec). **Epic end:
   Muncher and face textures are drawn procedurally at boot, one texture per colour.
   `setTintFill` is allowed for feedback flashes only.
 - The snack is drawn into a canvas texture and updated per bite, so a 20×20 board costs one
-  texture, not 400 game objects.
+  texture, not 400 game objects. Uneaten pixels are raised tiles, the revealed face flat
+  (GDD §4); face colours stay ΔE ≥ 18 from every snack colour (tests/face.test.ts).
 
 ## Project structure
 ```
@@ -80,9 +81,12 @@ deterministic and unit-testable.
 - TypeScript strict, no `any`. ESLint + Prettier, 100 columns.
 - Determinism: all randomness goes through `Rng` from a seed; same seed → identical level.
 - No magic numbers in gameplay code: constants live in `src/config.ts`, `src/game/feel.ts`,
-  `src/gen/params.ts`, with a comment each.
+  `src/gen/params.ts`, and the rule constants (boosters per level) in `src/core/game.ts`, with a
+  comment each.
 - Taps: a front muncher counts when the pointer goes down and up inside its hit circle
-  (radius `max(60, size / 2)` design px). Boosters and panels act on pointer-up.
+  (radius `max(60, size / 2)` design px); a muncher behind the front gets the nope (GDD §3a).
+  Buttons and panels act on a pointer-up that follows a pointer-down on the same target, so a
+  press held through a pause never counts.
 - Performance: one canvas texture for the snack, pooled bite sprites and crumbs, no per-frame
   allocations in update loops.
 - Every behaviour change gets a test; a bug fix starts with a red test.

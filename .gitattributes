@@ -1,0 +1,5 @@
+# LF everywhere: `npm run levels:check` compares src/data/levels.json byte for byte.
+* text=auto eol=lf
+*.png binary
+*.ogg binary
+*.m4a binary

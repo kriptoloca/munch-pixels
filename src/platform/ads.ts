@@ -1,9 +1,9 @@
 /**
- * Interstitial gating (CLAUDE.md rule 6, GDD §6): an interstitial may be requested only when
- * BOTH hold — at least SCENES_PER_INTERSTITIAL scenes were completed since the last one (or
+ * Interstitial gating (CLAUDE.md rule 6, GDD §7): an interstitial may be requested only when
+ * BOTH hold — at least SCENES_PER_INTERSTITIAL levels were completed since the last one (or
  * since session start) AND at least MIN_INTERVAL_MS elapsed since the last one (or since session
- * start). Pure and testable; the Bridge's own minimum delay is a second guard, not the source of
- * truth.
+ * start). ("Scene" = one level here; the names stay as ported from Peek & Find.) Pure and
+ * testable; the Bridge's own minimum delay is a second guard, not the source of truth.
  */
 export const SCENES_PER_INTERSTITIAL = 3;
 export const MIN_INTERVAL_MS = 120_000;

@@ -15,7 +15,10 @@ test('boot → Title (GameReady once, after loading) → play → Game', async (
 
 test('?level=N jumps into that level (dev shortcut)', async ({ page }) => {
   await page.goto(`${TEST}?reset=1&level=7${CANVAS}`, { waitUntil: 'load' });
-  await waitState(page, (s) => s.scene === 'Game' && s.level === 7, 'level 7');
+  const game = await waitState(page, (s) => s.scene === 'Game' && s.level === 7, 'level 7');
+  // the Game is the first interactive screen here, so it closes the loading and sends GameReady
+  expect(game.messages.filter((m) => m === 'in_game_loading_stopped')).toHaveLength(1);
+  expect(game.messages.filter((m) => m === 'game_ready')).toHaveLength(1);
 });
 
 test('the production build carries no debug hooks', async ({ page }) => {

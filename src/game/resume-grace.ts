@@ -2,8 +2,8 @@
  * Taps are ignored for this long after a platform resume. Bridge 2.3.1 pauses the game when
  * its window loses focus and resumes it on focus (src/platform/bridge.ts); in a host page the
  * focus only comes back with the next tap inside the game, and on iOS Safari that tap reaches
- * Phaser after the resume, so it counted as a game tap (sandbox report 2026-10-18: a heart on a
- * non-target right after an ad). The tap that woke the game is never a game tap.
+ * Phaser after the resume, so it counted as a game tap (Peek & Find sandbox report 2026-10-18).
+ * The tap that woke the game is never a game tap (CLAUDE.md rule 4).
  */
 export const RESUME_TAP_GRACE_MS = 350;
 
@@ -34,9 +34,10 @@ export class ResumeGrace {
     this.scene.input.enabled = false;
   }
 
-  /** Input returns after the grace, unless a pause comes first. */
+  /** Input returns after the grace, unless a pause comes first (input stays off until then). */
   resume(): void {
     this.clear();
+    this.scene.input.enabled = false;
     this.timer = setTimeout(() => {
       this.timer = null;
       this.scene.input.enabled = true;
@@ -53,4 +54,25 @@ export class ResumeGrace {
     clearTimeout(this.timer);
     this.timer = null;
   }
+}
+
+/** The part of the platform the gate listens to (src/platform/bridge.ts `Platform`). */
+interface PauseSource {
+  isPaused(): boolean;
+  onPause(cb: (paused: boolean) => void): () => void;
+}
+
+/**
+ * Wires a scene's gate to the platform pause, including a pause that began before the scene
+ * subscribed (e.g. during Boot): input stays off until the platform resumes. Returns the
+ * unsubscribe for the scene's shutdown.
+ */
+export function bindPauseGrace(grace: ResumeGrace, platform: PauseSource): () => void {
+  grace.reset();
+  const unsubscribe = platform.onPause((paused) => {
+    if (paused) grace.pause();
+    else grace.resume();
+  });
+  if (platform.isPaused()) grace.pause();
+  return unsubscribe;
 }
