@@ -9,6 +9,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty'); case \"$f\" in \"$CLAUDE_PROJECT_DIR\"/*) ;; *) exit 0 ;; esac; cd \"$CLAUDE_PROJECT_DIR\" || exit 0; [ -x node_modules/.bin/prettier ] || exit 0; node_modules/.bin/prettier --write --ignore-unknown --log-level warn \"$f\" >/dev/null 2>&1 || true",
+            "timeout": 30,
+            "statusMessage": "Formatting with Prettier"
+          }
+        ]
+      }
     ]
   }
 }
