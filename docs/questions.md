@@ -323,3 +323,14 @@ decisions where the docs leave a value or a behaviour open. Each rests on the li
   player wins most levels (≈ 90 % in the first build). Default: keep the bands as built and the
   planning peaks; after M1 Hasan plays levels 1–30 on the phone and we move the band targets if
   the game feels too easy or too hard (no human data before that).
+
+## 2026-10-21 (Hasan: "Bırak, Shy Ghosts'a geç"; slots: "5 slot, rakipler gibi")
+
+- **Decision:** Munch Pixels pauses after Epic 4 (6b613db); the agent team moves to Shy Ghosts.
+  Both playtests said a Food Hunt or Colony Flow! fan leaves by level 5 (PROGRESS, Reviews and
+  audits); the rework that answers them is specified in `docs/core-rework-spec.md`, not built.
+- **Slots on a return: five, like the leaders (Hasan).** The spec measured that with today's rules
+  five slots make every level trivial (the exact search needed four slots in about 3 % of
+  candidates; slack, not appetite, is what moves players). A return therefore starts with a rule
+  change that keeps five visible slots and still forces decisions, proven with the spec's player
+  models (skilled, eater, random) before any code; the spec's 3–4-slot plan is the fallback.

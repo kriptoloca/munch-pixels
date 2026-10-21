@@ -4,7 +4,7 @@ Single source of truth for "where did we leave off". Read first at the start of 
 update at the end of every epic.
 
 ## Status
-Epic: 4 (feel and art) built and audited 2026-10-21 (all 9 audit findings closed); the core rework is next (playtest verdict below) · M1 graybox done 2026-10-19 · Last update: 2026-10-21 · Branch: main
+**Paused 2026-10-21 (Hasan: "move to Shy Ghosts").** Epic 4 (feel and art) committed (6b613db, all 9 audit findings closed); the core rework is specified in docs/core-rework-spec.md and not started; on a return Hasan wants five slots (docs/questions.md) · M1 graybox done 2026-10-19 · Last update: 2026-10-21 · Branch: main
 Repo: https://github.com/kriptoloca/munch-pixels
 
 ## Session plan (2026-10-21, Epics 4–6, agent team)
@@ -539,8 +539,10 @@ Hasan: "plan step by step, completely, then start coding; scan all skills and us
       and digits now; the munchers' faces, sounds and juice come in Epic 4.
 
 ## Next steps (in order)
-1. Commit Epic 4 with the audit fixes (`feat(epic-4): …`), push, Pages deploy and e2e-live.
-2. The core rework (spec written separately): the playtest's core reasons (no decisions, tiny
+0. Paused (2026-10-21): nothing below starts until Hasan resumes Munch Pixels.
+1. On a return: design a rule change that keeps five waiting slots (Hasan) and still forces
+   decisions, prove it with the spec's player models before any code (docs/questions.md).
+2. The core rework (docs/core-rework-spec.md): the playtest's core reasons (no decisions, tiny
    meals, the rule hard to read) and its feel and art issues (fast taps strip the juice, a dull
    reveal, mean-looking faces, the burp lost on phone speakers).
 3. Epic 5 platform, boosters (+1 slot, undo) and ads; Epic 6 Title, brand, store, release.
