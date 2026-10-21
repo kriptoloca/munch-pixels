@@ -3,13 +3,19 @@ import type { GameEvent } from '../src/core/game';
 import {
   BITE_FLIGHT_MS,
   BITE_INTERVAL_MS,
+  CRUMB_MS,
   FAST_FORWARD_MS,
+  FULL_BOUNCE_MS,
+  FULL_HIT_STOP_MS,
   HOP_MS,
+  HOP_SQUASH_MS,
+  LEAVE_MS,
   STUCK_MS,
+  STUCK_STAGGER_MS,
   WAKE_MS,
   WIN_BEAT_MS,
 } from '../src/game/feel';
-import { Timeline, type Action } from '../src/game/timeline';
+import { Timeline, cascade, type Action } from '../src/game/timeline';
 
 const bite = (slot: number, cell: number, n: number, last = false): GameEvent => ({
   kind: 'bite',
@@ -95,6 +101,37 @@ describe('Timeline (GDD §3a playback)', () => {
     );
     const lost = all(t).find((x) => x.kind === 'lost');
     expect(lost?.at).toBe(HOP_MS + STUCK_MS);
+  });
+
+  it('a lost tap: the faces turn down slot by slot from the last sit-down, the panel STUCK_MS later', () => {
+    const t = new Timeline();
+    t.reset(['0:0', '1:0', '0:1', '2:0', null]);
+    t.add(
+      [{ kind: 'hop', lane: 2, index: 1, slot: 4 }, { kind: 'wait', slot: 4 }, { kind: 'lost' }],
+      100,
+    );
+    const a = all(t);
+    expect(a.map((x) => x.kind)).toEqual([
+      'hop',
+      'wait',
+      'stuck',
+      'stuck',
+      'stuck',
+      'stuck',
+      'stuck',
+      'lost',
+    ]);
+    const stuck = a.filter((x) => x.kind === 'stuck');
+    const beat = 100 + HOP_MS;
+    expect(stuck.map((x) => [x.who, x.kind === 'stuck' ? x.slot : -1, x.at])).toEqual([
+      ['0:0', 0, beat],
+      ['1:0', 1, beat + STUCK_STAGGER_MS],
+      ['0:1', 2, beat + 2 * STUCK_STAGGER_MS],
+      ['2:0', 3, beat + 3 * STUCK_STAGGER_MS],
+      ['2:1', 4, beat + 4 * STUCK_STAGGER_MS],
+    ]);
+    expect(stuck.map((x) => (x.kind === 'stuck' ? x.k : -1))).toEqual([0, 1, 2, 3, 4]);
+    expect(a.find((x) => x.kind === 'lost')?.at).toBe(beat + STUCK_MS);
   });
 
   it('a new tap squeezes what is still playing into the fast-forward window, in order', () => {
@@ -184,5 +221,31 @@ describe('Timeline (GDD §3a playback)', () => {
     t.reset([null, '2:3']);
     t.add([{ kind: 'wake', slot: 1 }, bite(1, 4, 5, true), { kind: 'full', slot: 1 }], 0);
     expect(all(t).map((x) => x.who)).toEqual(['2:3', '2:3', '2:3']);
+  });
+});
+
+describe('cascade (D5)', () => {
+  it("a tap's cascade is its own motion: the win reveal and the stuck beat are the level's beats", () => {
+    // the last tap of a lost level: a hop, a sit-down, then the stuck beat and the panel
+    const lost = cascade([
+      { kind: 'hop', lane: 0, index: 1, slot: 0 },
+      { kind: 'wait', slot: 0 },
+      { kind: 'lost' },
+    ]);
+    expect(lost.ms).toBe(HOP_MS + HOP_SQUASH_MS);
+    // the next input still waits for the panel (drained counts the beats)
+    expect(lost.drained).toBe(HOP_MS + STUCK_MS);
+    // the last tap of a won level: the meal's motion and its hit stop, not the win beat after it
+    const won = cascade([
+      { kind: 'hop', lane: 0, index: 0, slot: 0 },
+      bite(0, 1, 1, true),
+      { kind: 'full', slot: 0 },
+      { kind: 'won' },
+    ]);
+    const meal = HOP_MS + BITE_FLIGHT_MS + FULL_BOUNCE_MS + LEAVE_MS;
+    expect(meal).toBeGreaterThan(HOP_MS + CRUMB_MS);
+    expect(won.ms).toBe(meal + FULL_HIT_STOP_MS);
+    // the next input waits for the win (its beat, after the meal's hit stop)
+    expect(won.drained).toBe(HOP_MS + BITE_FLIGHT_MS + WIN_BEAT_MS + FULL_HIT_STOP_MS);
   });
 });

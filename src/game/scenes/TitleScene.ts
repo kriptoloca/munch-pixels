@@ -6,6 +6,7 @@ import {
   sentPlatformMessages,
   simulatePause,
 } from '../../platform/bridge';
+import { audio } from '../audio';
 import { ResumeGrace, bindPauseGrace } from '../resume-grace';
 import { progress } from '../state';
 
@@ -74,7 +75,11 @@ export class TitleScene extends Phaser.Scene {
     this.input.on(Phaser.Input.Events.POINTER_UP, (p: Phaser.Input.Pointer) => {
       const go = pressed && onPlay(p);
       pressed = false;
-      if (go) this.scene.start('Game', {});
+      if (!go) return;
+      // The first gesture: the click, and the music from now on (nothing plays before it).
+      audio.play('button');
+      audio.startMusic();
+      this.scene.start('Game', {});
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, layout);
@@ -92,6 +97,7 @@ export class TitleScene extends Phaser.Scene {
           platformId: platform.platformId,
           messages: [...sentPlatformMessages()],
           paused: platform.isPaused(),
+          audio: audio.debug(),
         }),
         point: (name) =>
           name === 'play'

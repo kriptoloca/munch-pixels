@@ -1,0 +1,5 @@
+{
+  "$comment": "The GDD §11 sound set. Sources: assets/audio/<name>.(wav|ogg|mp3|flac|m4a|aac); scripts/audio.mjs encodes OGG + M4A into public/audio/ and synthesizes a placeholder for every missing source (D14). Kept in sync with scripts/lib/synth.mjs, src/game/audio-keys.ts and the feel gains (src/game/feel.ts) by tests/audio.test.ts.",
+  "sfx": ["hop", "bite", "burp", "perk", "wait", "nope", "win", "stuck", "pop", "undo", "button"],
+  "music": "music_loop"
+}

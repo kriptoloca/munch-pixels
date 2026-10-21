@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "sounds": {
+    "hop": {
+      "ogg": "audio/hop.ogg",
+      "m4a": "audio/hop.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "bite": {
+      "ogg": "audio/bite.ogg",
+      "m4a": "audio/bite.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "burp": {
+      "ogg": "audio/burp.ogg",
+      "m4a": "audio/burp.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "perk": {
+      "ogg": "audio/perk.ogg",
+      "m4a": "audio/perk.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "wait": {
+      "ogg": "audio/wait.ogg",
+      "m4a": "audio/wait.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "nope": {
+      "ogg": "audio/nope.ogg",
+      "m4a": "audio/nope.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "win": {
+      "ogg": "audio/win.ogg",
+      "m4a": "audio/win.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "stuck": {
+      "ogg": "audio/stuck.ogg",
+      "m4a": "audio/stuck.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "pop": {
+      "ogg": "audio/pop.ogg",
+      "m4a": "audio/pop.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "undo": {
+      "ogg": "audio/undo.ogg",
+      "m4a": "audio/undo.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "button": {
+      "ogg": "audio/button.ogg",
+      "m4a": "audio/button.m4a",
+      "source": "placeholder",
+      "music": false
+    },
+    "music_loop": {
+      "ogg": "audio/music_loop.ogg",
+      "m4a": "audio/music_loop.m4a",
+      "source": "placeholder",
+      "music": true
+    }
+  },
+  "music": "music_loop"
+}

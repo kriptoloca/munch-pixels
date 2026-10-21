@@ -15,7 +15,7 @@ session's skill list.
 | See the change in the real app | `run` | Launch the dev build and screenshot it when a test is not enough | as needed |
 | Store listing text | `design:ux-copy` | Listing, how-to-play, 13+ wording | Epic 6 |
 | Logos, icon, thumbnails | `canvas-design` (+ `scripts/thumbnails.mjs` pattern from Peek & Find) | Original marks; real gameplay thumbnails | Epic 6 |
-| Visual pass | `design:design-critique`, `design:accessibility-review` | Colour distinctness (colour-blind risk), contrast, layout | Epic 4/6 |
+| Visual pass | `design:design-critique`, `design:accessibility-review` | Colour distinctness (colour-blind risk), contrast, layout | Epic 4 gate done 2026-10-21 (docs/questions.md); Epic 6 |
 | Launch plan | `game-trend-skills:launching-on-zero-budget` | Playgama sandbox, free share-bonus run, community post, YouTube Playables | Epic 6 |
 | After launch | `game-trend-skills:tracking-game-metrics`, `product-management:metrics-review` | Kill / iterate / scale against the brief's targets | post-launch |
 | Submission day | `engineering:deploy-checklist` | Walk the certification checklist before the upload | Epic 6 |

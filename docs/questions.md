@@ -166,11 +166,158 @@ Every deviation from the spec, every assumption, with the reason. Newest at the 
   M1 needs Hasan's phone check, and the `/test/` build carries the dev shortcuts.
 
 
+## 2026-10-21 (session plan for Epics 4–6: decisions D1–D15)
+
+The plan in docs/PROGRESS.md ("Session plan (2026-10-21, Epics 4–6, agent team)") took these
+decisions where the docs leave a value or a behaviour open. Each rests on the lines named.
+
+- **D1** Combo base pitch: `COMBO_CENTS_PER_STEP = 100`; a bite plays at
+  `100 × min(n − 1, 12) + 100 × step` cents. Rests on GDD.md:86–87 ("Combo step … raises the
+  full-meal kick and the base pitch of the bites", no value).
+- **D2** Bite pitch "cap 12": from the 13th bite of a meal on, the pitch stays at +1200 cents.
+  Rests on GDD.md:75 (bite row: "+100 cents per bite of this meal (cap 12)").
+- **D3** Hop "pitch by colour index" = the palette index (`PALETTE` order), so a colour hops at the
+  same pitch in every level; `HOP_CENTS_PER_COLOUR = 100`, wrapped in an octave. Rests on
+  GDD.md:74 (hop row: "`hop`, pitch by colour index").
+- **D4** Squeezed actions: an action played `fast` gets no hit stop, no kick, no haptic and at most
+  one sound of a kind per frame (the plan: "at most one bite tick per frame"); its flight, crumbs
+  and counter still play. Rests on GDD.md:92–97 (a new tap squeezes earlier playback "so the new
+  muncher never waits").
+- **D5** Cascade per input 0.5–2 s applies to taps that end in a full meal. Rests on GDD.md:88–90.
+  Measured for the plan with Epic 3 timings: 0.72–3.02 s, median 1.00 s, 98.6 % inside over the
+  3,723 taps of the stored solutions; 445 taps (12 %) end without a full meal (384 a hop alone).
+  Re-measured with Epic 4's real exit below.
+- **D6** The win smile: the face blinks once and its mouth is redrawn as the grin variant (a
+  `drawFace` option: same seed, only the mouth cells change). Rests on GDD.md:37 ("it smiles"),
+  GDD.md:110–111 ("smiles when the snack is gone") and GDD.md:81 (win row: blink and grow).
+- **D7** Undo: every bite of the undone tap flies back, chain bites included, munchers that left
+  reappear, then the screen is redrawn from the rules. Rests on GDD.md:84 (undo row) and
+  GENERATOR.md:79–80 (`undo()` restores the whole state before the last tap). Epic 5.
+- **D8** Lose panel: retry (big) and +1 slot, no undo there; the `slot` booster is one per level,
+  from its button or as the panel's continue. Rests on GDD.md:162 (screen 5). Epic 5.
+- **D9** Pause menu: freezes the scene and pauses the music, its own clicks still sound; opens
+  over the lose panel, never over the win panel. Rests on GDD.md:98–99 and GDD.md:163. Epic 5.
+- **D10** Interstitial: only on the win panel's continue tap, never after a loss or a retry;
+  `AdGate.onSceneCompleted()` on every win; one gate per session on `performance.now()`. Rests on
+  GDD.md:139–141, GDD.md:160–161 and CLAUDE.md:39–43 (rule 6). Epic 5.
+- **D11** Share: the win panel's share button is excluded from "tap anywhere"; a 1080×1080 PNG of
+  the revealed face with the level number and the wordmark; the text is one string without a URL;
+  hidden on YouTube; after a refused share and a refused download the button hides for the
+  session. Rests on GDD.md:118–122, GDD.md:160 and CLAUDE.md:49–50 (rule 9). Epic 6.
+- **D12** "Screenshots in three aspects": 1080×1920, 1080×1080 and 1920×1080. Rests on TASKS.md:69.
+  Epic 6.
+- **D13** First upload as version 0.1.0, so the ZIP is `release/munch-pixels-0.1.0.zip`. Rests on
+  briefs/munch-pixels.md:98 (M3) and package.json (0.0.1 today). Epic 6.
+- **D14** The synthesized placeholder sounds and loop ship to the sandbox; real files drop into
+  `assets/audio/` later without code. Rests on briefs/munch-pixels.md:117 ("an art pass after the
+  first sandbox numbers") and GDD.md:174–177 (§11 "Synthesized placeholders like Peek & Find").
+- **D15** Dev-only test switches (Peek & Find patterns): `?feelslow=K` stretches every feel timing
+  K times, `?adfast=1` starts the session's AdGate 120 s back, `?fakeads=fail` makes fake rewarded
+  ads fail. Rests on docs/PROGRESS.md:43–44 (dev parameters only inside `import.meta.env.DEV`) and
+  briefs/munch-pixels.md:70 (`?fakeads=1`). `feelslow` built in Epic 4; the others in Epic 5.
+
+## 2026-10-21 (Epic 4: feel and art, M2, as built)
+
+- **One clock for the juice.** The scene clock, the timeline and every pooled effect (flights,
+  crumbs, puffs, confetti) run on `clockScale` (1 / feelslow; 0 inside a hit stop); the tweens on
+  `tweens.timeScale`, set together. `hitStop(ms)` is the one function: it zeroes both, restores
+  them on a wall-clock timer, never starts under a pause, and a pause inside it stays frozen
+  after the restore (the pause has its own switches). `?feelslow=K` scales both rates, the stop
+  and the kicks, so a whole cascade can be watched or tested in slow motion. The camera kick runs
+  on the game loop: a pause resets it (`resetFX`).
+- **Ticks sound when the pixel lands** (the counter drops with the tick: counting along), so the
+  last bite's +2 dB tick, the full meal's hit stop and the kick land on one frame. Flights start
+  at their scheduled time, so a flight and its meal's `full` meet exactly.
+- **D1 in practice: a meal's base pitch is latched when its eating run starts** (the hop or a
+  wake). The combo is fed by the full and wait actions as they play (played order equals rules
+  order for fulls and waits); latching keeps "each bite 100 cents above the last" inside a run
+  even when an earlier muncher's full lands mid-run in a chain.
+- **The hop's squash is its take-off**, relaxing over the first 80 ms of the 220 ms arc, then a
+  landing squash: the timeline's HOP_MS still marks the landing, so the first bite still leaves
+  as the muncher lands (GDD values kept, no extra delay per tap).
+- **The full meal's exit** is the 45 ms stop, a 120 ms belly bounce (1.2×, up and back) with the
+  smug face, the burp and its puff at the top of the bounce, then the 300 ms waddle (rising,
+  rocking, fading). The burp runs on its own timer: the full-meal e2e found that a tap right
+  after a cascade drained (the next muncher hopping into the same slot hurries the old one off)
+  cut the burp from the bounce; fixed red-first.
+- **The stuck beat is scheduled by the timeline**: one `stuck` action per seated muncher, slot by
+  slot, STUCK_STAGGER_MS apart from the last sit-down, the `lost` panel STUCK_MS after the first.
+  Face turns on tween timers drifted against the scene clock under load (an e2e caught it); on
+  the timeline they are exact, testable without Phaser, and a redraw lands on the stuck faces.
+  Epic 5's `cancelLost()` drops these with the `lost`.
+- **The lose panel slides up** in PANEL_SLIDE_MS (250 ≤ the 300 ms press guard); the win panel
+  appears in place with the reveal.
+- **The blink** (D6) shuts each eye with whites to a dark lid line across the eye's whole width
+  on its eye row; eyes that are all dark already (dots, sleepy lines) vanish into the head for
+  the blink, otherwise a fifth of the faces would not visibly blink. The drawing records the
+  cells eye by eye, so a centred cyclops eye shuts as one eye (audit fix: grouping by the side of
+  the centre split it, so it vanished on odd widths and kept a two-of-three lid on even ones;
+  `tests/face.test.ts` › "every eye with whites shuts to a lid as wide as the eye"). A
+  fingerprint test proves the default faces are unchanged.
+- **Muncher art** (`src/game/muncher-art.ts`, pure shapes; SVG for Epic 6's icon): one body per
+  palette colour whose fill is exactly the palette colour (a darker outline of its own colour,
+  shade, belly patch, highlight, feet baked around it; the ink body keeps its light ring and gets
+  light features), seven shared overlays: idle, eating, waiting (mouth open, eyes up), waking (eyes
+  wide), full (smug, half lids), stuck (eyes down, sad brows) and **queue** (eyes only). Not
+  baby-faced: brows tilted in, hooded eyes, a fang, eyes high and not oversized. Eye whites carry
+  an ink ring (the cream body lost its eyes without it). **Deviation:** the seventh overlay, so a
+  queued muncher shows its eyes and a digit at 0.55 of its size (34 design px on 9:16; the
+  graybox had 26) instead of a full face with a digit too small to read.
+- **MuncherView moved** from GameScene.ts to `src/game/muncher-view.ts` (deviation from the plan's
+  file list: the scene grew past 1,200 lines with the juice; the view is its own unit now).
+- **Pools** (`src/game/fx.ts`): flights 8, crumbs 24, puffs 9, confetti 36, created with the board
+  and reused; the per-frame update allocates nothing, the bite path writes into scratch points
+  and one scratch sound-options object (audit fix: each landing used to allocate its
+  `{ detune, db }`; a play without options shares one frozen empty object;
+  `tests/source-rules.test.ts`), and the bite tick (14 a second) plays from 4 reused sound
+  instances. A long level played at the normal pace grows no pool (e2e).
+- **Sound levels.** Peek & Find's lesson repeated itself: soft failure tones have a low crest
+  factor, so with every file normalized to one peak the nope, wait and stuck files measured louder
+  than the clicky bite. The success files are now dense (bite, burp, win) and the failure files
+  sparse; gains: hop 0.6, bite 0.7, burp 1, perk 0.7, wait 0.55, nope 0.5 (GDD), win 1, stuck 0.6
+  (GDD), pop 0.8, undo 0.7, button 0.6. As played: full meal −12.4 dB, win −13.6, nope −24.0
+  (the quietest), wait −22.4, stuck −21.7, a lost tap's wait + stuck −19.0.
+- **`npm run audio:check`** (CI) checks the committed `public/audio` against the manifest (every
+  sound in both formats, the index, the budgets) and checks that every file runs as long as its
+  source (ffprobe; CI installs ffmpeg). Encoding needs ffmpeg 6.1.1 and is not byte-stable across
+  ffmpeg versions (as in Peek & Find), so CI checks presence, budgets and durations, and
+  `tests/audio.test.ts` measures the levels (`SFX_FILE_DB`, ±1 dB). Audit fix: ffmpeg reads
+  every source by its path with `-xerror` (`scripts/lib/encode.mjs`); through a pipe, a drop-in
+  M4A with its index at the end came out as a silent 3 KB stub while ffmpeg reported success,
+  and a cut source as a short file (`tests/audio-encode.test.ts`). Re-encoding the placeholders
+  this way gives byte-identical files.
+- **D5 re-measured with Epic 4's exit** (`cascade()` in `src/game/timeline.ts`, hit stops
+  counted): taps that end in a full meal run 0.89–3.37 s, median 1.17 s, 97.7 % inside 0.5–2 s.
+  At the capture's pace (each tap when the cascade drained) the longest stretch without a finish
+  over all 100 levels is 3.3 s (level 53).
+- **The capture anchors on the win.** Playwright's screencast lags the page under load and drops
+  what is still queued when the page closes, so "the last 10 s of the video" missed the win. The
+  script keeps the page open 6 s past the win, finds the first frame showing the win panel's
+  button in the video and cuts 10 s ending 1.5 s after it; the feel log maps through the same
+  anchor.
+- **Music on the first game tap** when a dev URL skips the Title (`?level=20` for the phone
+  check); in production the Title's play tap starts it, as planned.
+- **Task 4 design gate, done by the coder** with `design:design-critique` and
+  `design:accessibility-review` on 9:16, 1:1 and 16:9 shots of levels 1, 20 and 70 (the gamer's
+  own gate stays with the team): the snack draws the eye first, then the front munchers, then the
+  queues; no baby look. Digits: white on a #1b1f2a stroke, 16.5:1, on every body. The plan's close
+  pairs under normal vision (CIE76): red/maroon 35, red/pink 49, maroon/pink 44, green/lime 36,
+  cyan/blue 67, sand/yellow 31, sand/cream 41, yellow/cream 66; under simulated deuteranopia and
+  protanopia all ≥ 17.8. The pairs that collapse for dichromats, blue/purple (deutan 9, protan 5)
+  and brown/maroon (deutan 10), never share a level (0 of 100); orange/yellow (deutan 19) shares 9
+  levels and red/maroon (protan 18) 6, carried by lightness. Recorded, not changed: the maroon,
+  brown and ink bodies are dark on the slot (1.5–2.1:1); their eyes, digits and the ink ring carry
+  the silhouette. 1:1 queue munchers are small (the digit stays ≥ 30 design px, tested).
+- **No new dependency.** ffmpeg (system) for `npm run audio`, `npm run audio:check` (ffprobe),
+  the audio tests and `npm run capture`.
+
 ## Open questions (defaults in force)
 
 - Final name — default "Munch Pixels" (working title); check stores and portals before the
   listing.
 - Colour-blind support — default distinct hue + lightness; shape marks if testers struggle.
+  Epic 4 data (task 4 gate): the two pairs dichromats lose (blue/purple, brown/maroon) never share
+  a level; the belly patch has room for a shape mark if Hasan's testers report trouble.
 - After level 100 — default: the last level repeats in v0.1; endless seeds in v0.2.
 - How hard is hard for a person? The difficulty signal is a random tapper; a careful (greedy)
   player wins most levels (≈ 90 % in the first build). Default: keep the bands as built and the

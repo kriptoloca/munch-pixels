@@ -20,6 +20,17 @@ describe('haptics', () => {
     }
   });
 
+  it('the patterns are the GDD §3a values', () => {
+    expect(HAPTIC_PATTERNS).toEqual({
+      hop: [10],
+      full: [12],
+      nope: [8],
+      won: [20, 40, 40],
+      stuck: [30],
+      booster: [10],
+    });
+  });
+
   it('failure never outweighs success (GDD §3a)', () => {
     expect(on(HAPTIC_PATTERNS.nope)).toBeLessThan(on(HAPTIC_PATTERNS.hop));
     expect(on(HAPTIC_PATTERNS.nope)).toBeLessThan(on(HAPTIC_PATTERNS.full));

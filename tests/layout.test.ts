@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { HIT_MIN_R } from '../src/config';
+import { HIT_MIN_R, LEVEL_LABEL_H, LEVEL_LABEL_W, SLOT_STROKE } from '../src/config';
+import { WIN_FACE_SCALE } from '../src/game/feel';
 import {
+  boardRect,
   computeLayout,
   denPoint,
   designSize,
   pickDen,
+  winScale,
   type Circle,
   type GameLayout,
   type Rect,
@@ -28,7 +31,7 @@ const SNACKS: readonly [number, number][] = [
   [16, 15],
 ];
 /** The level number is at most three digits (GDD §9) at the HUD size: this box holds it. */
-const LEVEL_BOX = { w: 120, h: 90 };
+const LEVEL_BOX = { w: LEVEL_LABEL_W, h: LEVEL_LABEL_H };
 
 function circleBox(c: Circle): Rect {
   return { x: c.x - c.r, y: c.y - c.r, w: 2 * c.r, h: 2 * c.r };
@@ -41,11 +44,19 @@ function boxes(l: GameLayout): Record<string, Rect> {
   const lane0 = l.lanes[0] as { x: number; y: number };
   const laneN = l.lanes.at(-1) as { x: number; y: number };
   const half = Math.max(l.hitR, l.muncherSize / 2);
+  // the slot frames' line sits on their edge: half of it reaches outside
+  const line = SLOT_STROKE / 2;
   return {
     level: { x: l.level.x, y: l.level.y - LEVEL_BOX.h / 2, w: LEVEL_BOX.w, h: LEVEL_BOX.h },
     pause: circleBox(l.pause),
-    snack: l.snack,
-    slots: { x: first.x - s / 2, y: first.y - s / 2, w: last.x - first.x + s, h: s },
+    // the board panel at its largest: grown by the win (WIN_FACE_SCALE, capped per screen)
+    board: boardRect(l, winScale(l, WIN_FACE_SCALE)),
+    slots: {
+      x: first.x - s / 2 - line,
+      y: first.y - s / 2 - line,
+      w: last.x - first.x + s + 2 * line,
+      h: s + 2 * line,
+    },
     dens: {
       x: lane0.x - half,
       y: lane0.y - l.muncherSize / 2,
@@ -116,6 +127,18 @@ describe('computeLayout (GDD §10, CLAUDE.md rule 5)', () => {
         }
       }
     });
+  });
+
+  it('the win grows the board up to WIN_FACE_SCALE, capped only where it would reach a neighbour', () => {
+    const full = new Set<string>();
+    each((tag, l) => {
+      const k = winScale(l, WIN_FACE_SCALE);
+      expect(k, tag).toBeGreaterThanOrEqual(1);
+      expect(k, tag).toBeLessThanOrEqual(WIN_FACE_SCALE);
+      if (k === WIN_FACE_SCALE) full.add(l.orientation);
+    });
+    // every arrangement keeps the full grow where the board has room
+    expect([...full].sort()).toEqual(['landscape', 'portrait', 'square']);
   });
 
   it('tap targets are big and apart; the snack and the queues stay readable', () => {

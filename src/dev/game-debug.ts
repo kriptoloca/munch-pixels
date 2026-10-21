@@ -1,10 +1,13 @@
 import type { Game } from '../core/game';
+import { audio } from '../game/audio';
 import type { Level } from '../gen/level';
 import { findLosingTaps } from '../gen/metrics';
 import { denPoint, type GameLayout, type Point } from '../game/layout';
 import { progress } from '../game/state';
 import { getPlatform, sentPlatformMessages, simulatePause } from '../platform/bridge';
-import { installDebug, toScreen } from './debug';
+import type { FeelEvent } from '../game/feel';
+import type { PoolCounts } from '../game/fx';
+import { installDebug, toScreen, type ScreenShot } from './debug';
 
 /** Seeds tried by the hook that looks for a losing tap order. */
 const LOSING_TRIES = 400;
@@ -29,17 +32,26 @@ export interface GameProbe {
   motion: () => number;
   /** Taps on the dens count now (level-start guard over, no pause, no panel). */
   inputOpen: () => boolean;
-  /** The open panel takes presses now (its guard is over). */
+  /** The open panel takes presses now (its guard is over); when it opened. */
   panelReady: () => boolean;
+  panelAt: () => number;
   /** What the screen shows, to compare with the rules. */
   screen: () => ScreenShot;
-}
-
-/** The screen as drawn: per slot the rules' seated muncher's view, frames, dens. */
-export interface ScreenShot {
-  seats: ({ digit: number; alpha: number; x: number; y: number } | null)[];
-  amber: boolean[];
-  dens: { front: number; digits: number[]; alphas: number[]; more: string }[];
+  feel: () => FeelEvent[];
+  timeScale: () => number;
+  hitStops: () => number;
+  shakeStarts: () => number;
+  shaking: () => boolean;
+  clock: () => number;
+  pool: () => PoolCounts;
+  objects: () => number;
+  views: () => number;
+  panelObjects: () => number;
+  blinks: () => number;
+  smile: () => boolean;
+  boardScale: () => number;
+  winScale: () => number;
+  hitStop: (ms: number) => void;
 }
 
 /**
@@ -61,6 +73,10 @@ export function screenMismatches(rules: Game, L: GameLayout, shot: ScreenShot): 
       out.push(`slot ${String(i)}: digit ${String(v.digit)} ≠ ${String(s.remaining)}`);
     }
     if (at && Math.hypot(v.x - at.x, v.y - at.y) > 1) out.push(`slot ${String(i)}: not in place`);
+    // a muncher still seated after the timeline settled is waiting: mouth open, eyes up; on a
+    // lost level it looks down (GDD §3a)
+    const face = rules.status === 'lost' ? 'stuck' : 'waiting';
+    if (s.waiting && v.face !== face) out.push(`slot ${String(i)}: face ${v.face} ≠ ${face}`);
   });
   shot.amber.forEach((a, i) => {
     if (a !== (rules.slots[i]?.waiting === true)) out.push(`slot ${String(i)}: amber ${String(a)}`);
@@ -100,6 +116,7 @@ export function installGameDebug(p: GameProbe): void {
         platformId: platform.platformId,
         messages: [...sentPlatformMessages()],
         paused: platform.isPaused(),
+        audio: audio.debug(),
         game: {
           status: rules.status,
           panel: p.panel(),
@@ -115,9 +132,30 @@ export function installGameDebug(p: GameProbe): void {
           motion: p.motion(),
           inputOpen: p.inputOpen(),
           panelReady: p.panelReady(),
+          panelAt: p.panelAt(),
           mismatches: screenMismatches(rules, p.layout(), p.screen()),
           savedLevel: progress.level,
           levelsCompleted: progress.levelsCompleted,
+          frontKeys: rules.lanes.map((_, lane) => {
+            const m = rules.front(lane);
+            return m ? (rules.keys[m.colour] ?? null) : null;
+          }),
+          slots: p.layout().slots.map((q) => ({ x: q.x, y: q.y })),
+          screen: p.screen(),
+          feel: [...p.feel()],
+          timeScale: p.timeScale(),
+          hitStops: p.hitStops(),
+          shakeStarts: p.shakeStarts(),
+          shaking: p.shaking(),
+          clock: p.clock(),
+          pool: p.pool(),
+          objects: p.objects(),
+          views: p.views(),
+          panelObjects: p.panelObjects(),
+          blinks: p.blinks(),
+          smile: p.smile(),
+          boardScale: p.boardScale(),
+          winScale: p.winScale(),
         },
       };
     },
@@ -140,5 +178,6 @@ export function installGameDebug(p: GameProbe): void {
       progress.level = n;
     },
     pause: simulatePause,
+    hitStop: p.hitStop,
   });
 }

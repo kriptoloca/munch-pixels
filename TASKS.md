@@ -53,6 +53,17 @@ Port the toolchain and the platform layer from Peek & Find (same versions).
 - AC: unit tests (success outweighs failure: haptics, sounds as played); e2e feel log (bites
   ascend in pitch, a full meal logs a kick, a tap on a muncher behind the front logs a nope and no camera shake); muted 10-second
   capture of level 20 attached to PROGRESS.
+- Status 2026-10-21: built and audited (0 KRİTİK, 1 YÜKSEK, 2 ORTA, 6 DÜŞÜK, all closed); the core
+  rework follows the playtest (docs/PROGRESS.md, Reviews and audits).
+  - [x] `game/feel.ts` constants and helpers (D1–D4), `tests/feel.test.ts`
+  - [x] synthesized sounds (`npm run audio`, `audio:check` in CI), AudioManager, Boot loads them
+  - [x] procedural muncher textures (one body per colour, shared expressions) and the win face
+        (blink and grin, D6)
+  - [x] hop, bite stream (crumbs, belly, rising pitch), full meal (hit stop, kick, combo step,
+        burp, waddle), chain wake, waiting face, nope, win reveal, stuck faces, haptics
+  - [x] AC: unit (haptics, sounds as played), e2e feel log (bites ascend, full meal kick, nope
+        without a shake), capture of level 20 (`npm run capture`, linked in PROGRESS)
+  - [ ] code-review, adversarial audit, gamer feel audit (team), then `feat(epic-4)`
 
 ## Epic 5 — Platform, boosters and ads
 - Bridge lifecycle (GameReady, gameplay start/stop, level messages), pause/mute freeze and dim,

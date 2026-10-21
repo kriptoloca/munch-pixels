@@ -12,9 +12,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # ffmpeg for the audio tests and audio:check (they decode and measure the shipped files)
+      - run: command -v ffprobe || (sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg)
       - run: npm run check
       - run: npm test
       - run: npm run levels:check
+      - run: npm run audio:check
       - run: npm run build
       - run: npm run size
       - run: npm run zip:only

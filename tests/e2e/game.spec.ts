@@ -115,6 +115,20 @@ test('rapid taps through a long level: every animation is squeezed, nothing brea
   // every muncher has eaten and left: no view is left behind in a slot or a den
   await waitState(page, (s) => s.game?.outViews === 0, 'all munchers gone');
   expect(won.game?.denViews).toBe(0);
+  // D4: squeezed actions log no hit stop and no kick (and no haptic); the rest keep theirs
+  const feel = (won.game?.feel ?? []).filter((e) => e.level === 26);
+  const fulls = feel.filter((e) => e.kind === 'full');
+  const fast = fulls.filter((e) => e.fast === true);
+  expect(fast.length).toBeGreaterThan(0);
+  for (const f of fast) {
+    expect(f.hitStop).toBe(0);
+    expect(f.shake).toBe(0);
+    expect(f.haptic).toBeNull();
+  }
+  const kicked = fulls.length - fast.length;
+  expect(won.game?.hitStops).toBe(kicked + 1);
+  expect(won.game?.shakeStarts).toBe(kicked + 1);
+  expect(feel.filter((e) => e.kind === 'hop' && e.fast && e.haptic !== null)).toEqual([]);
 });
 
 async function at(page: Page, name: string): Promise<{ x: number; y: number }> {

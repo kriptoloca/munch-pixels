@@ -1,4 +1,6 @@
 import {
+  BOARD_GROW_CLEAR,
+  BOARD_PAD,
   BOOSTER_BAND_H,
   BOOSTER_R,
   DESIGN_LONG_MAX,
@@ -8,6 +10,8 @@ import {
   HUD_H,
   LANDSCAPE_MIN_ASPECT,
   LANE_SPACING_MAX,
+  LEVEL_LABEL_H,
+  LEVEL_LABEL_W,
   MARGIN,
   MINI_GAP,
   MINI_SCALE,
@@ -20,6 +24,7 @@ import {
   SIDE_COL_W,
   SLOT_GAP,
   SLOT_MAX,
+  SLOT_STROKE,
   SNACK_MAX,
 } from '../config';
 
@@ -237,6 +242,64 @@ export function computeLayout(width: number, height: number, input: LayoutInput)
     hitR: Math.max(HIT_MIN_R, muncherSize / 2),
     boosters,
   };
+}
+
+/** The board panel (the snack and its pad) grown `k` times around the snack's centre. */
+export function boardRect(l: GameLayout, k: number): Rect {
+  const w = (l.snack.w + 2 * BOARD_PAD) * k;
+  const h = (l.snack.h + 2 * BOARD_PAD) * k;
+  return { x: l.snack.x + (l.snack.w - w) / 2, y: l.snack.y + (l.snack.h - h) / 2, w, h };
+}
+
+function circleRect(c: Circle): Rect {
+  return { x: c.x - c.r, y: c.y - c.r, w: 2 * c.r, h: 2 * c.r };
+}
+
+/** What the grown board must not reach: the HUD, the slot frames, the dens, the boosters. */
+function neighbours(l: GameLayout): Rect[] {
+  const s = l.slotSize + SLOT_STROKE;
+  const first = l.slots[0] as Point;
+  const last = l.slots.at(-1) as Point;
+  const lane0 = l.lanes[0] as Point;
+  const laneN = l.lanes.at(-1) as Point;
+  const half = Math.max(l.hitR, l.muncherSize / 2);
+  const denTop = lane0.y - l.muncherSize / 2;
+  const denBottom = denPoint(l, 0, l.queueVisible - 1).y + l.miniSize / 2;
+  return [
+    { x: l.level.x, y: l.level.y - LEVEL_LABEL_H / 2, w: LEVEL_LABEL_W, h: LEVEL_LABEL_H },
+    circleRect(l.pause),
+    { x: first.x - s / 2, y: first.y - s / 2, w: last.x - first.x + s, h: s },
+    { x: lane0.x - half, y: denTop, w: laneN.x - lane0.x + 2 * half, h: denBottom - denTop },
+    circleRect(l.boosters.slot),
+    circleRect(l.boosters.undo),
+  ];
+}
+
+/**
+ * How far the win grows the board on this screen (GDD §3a win row): `want` (WIN_FACE_SCALE)
+ * where there is room, less where the grown board would come within BOARD_GROW_CLEAR px of the
+ * canvas edge or of a neighbour (audit fix: 1.08 covered the slot frames on 9:16 and 1:1 and ran
+ * past the left edge on 16:9); never below 1. The board grows around the snack's centre.
+ */
+export function winScale(l: GameLayout, want: number): number {
+  const b = boardRect(l, 1);
+  const cx = b.x + b.w / 2;
+  const cy = b.y + b.h / 2;
+  const hx = b.w / 2;
+  const hy = b.h / 2;
+  const c = BOARD_GROW_CLEAR;
+  let k = Math.min(want, (cx - c) / hx, (l.width - c - cx) / hx, (cy - c) / hy);
+  k = Math.min(k, (l.height - c - cy) / hy);
+  for (const n of neighbours(l)) {
+    // the largest k that keeps the board on one side of this neighbour (any side will do)
+    let room = 0;
+    if (n.x - c >= cx) room = Math.max(room, (n.x - c - cx) / hx);
+    if (n.x + n.w + c <= cx) room = Math.max(room, (cx - n.x - n.w - c) / hx);
+    if (n.y - c >= cy) room = Math.max(room, (n.y - c - cy) / hy);
+    if (n.y + n.h + c <= cy) room = Math.max(room, (cy - n.y - n.h - c) / hy);
+    k = Math.min(k, room);
+  }
+  return Math.max(1, k);
 }
 
 /** Centre of place k of a den (0 = the front muncher, then the queue). */

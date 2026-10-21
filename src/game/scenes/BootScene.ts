@@ -3,6 +3,8 @@ import { t } from '../../data/strings';
 import { attachAnalyticsSink, track } from '../../platform/analytics';
 import { initPlatform } from '../../platform/bridge';
 import { SaveStore } from '../../platform/storage';
+import { AUDIO_INDEX_KEY, AUDIO_INDEX_URL, audio, loadAudio } from '../audio';
+import { ensureMuncherTextures } from '../textures';
 import {
   adoptLateSave,
   attachSaveStore,
@@ -19,11 +21,17 @@ const COLOR_BAR_FILL = 0xf7b32b;
 
 /**
  * Boot (GDD §9 screen 1): our own loading screen, then the Bridge (storage goes through it), the
- * save, and the Title. GameReady is sent by the Title once it is interactive (CLAUDE.md rule 3).
+ * save, the sounds, and the Title. GameReady is sent by the Title once it is interactive with its
+ * assets in memory (CLAUDE.md rule 3).
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
+  }
+
+  preload(): void {
+    // Written by scripts/audio.mjs; without it the game runs silent.
+    this.load.json(AUDIO_INDEX_KEY, AUDIO_INDEX_URL);
   }
 
   create(): void {
@@ -48,9 +56,12 @@ export class BootScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add.rectangle(cx, cy + 50, BOOT_BAR_W, BOOT_BAR_H, COLOR_BAR_TRACK);
-    this.add
-      .rectangle(cx - BOOT_BAR_W / 2, cy + 50, BOOT_BAR_W, BOOT_BAR_H, COLOR_BAR_FILL)
+    const fill = this.add
+      .rectangle(cx - BOOT_BAR_W / 2, cy + 50, 1, BOOT_BAR_H, COLOR_BAR_FILL)
       .setOrigin(0, 0.5);
+    this.load.on(Phaser.Loader.Events.PROGRESS, (v: number) => {
+      fill.width = Math.max(1, BOOT_BAR_W * v);
+    });
   }
 
   private async boot(): Promise<void> {
@@ -77,6 +88,10 @@ export class BootScene extends Phaser.Scene {
         target = 'Game';
       }
     }
+    // The sounds load before the Title, so GameReady (sent by the Title) has them in memory.
+    await loadAudio(this);
+    audio.attach(this, platform);
+    ensureMuncherTextures(this);
     this.scene.start(target);
   }
 }

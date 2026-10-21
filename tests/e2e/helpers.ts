@@ -81,3 +81,17 @@ export async function tapPoint(page: Page, name: string): Promise<void> {
   if (!p) throw new Error(`${name}: no such point on screen`);
   await page.mouse.click(p.x, p.y);
 }
+
+/**
+ * Flips the SDK's own audio state (what the YouTube adapter's onAudioEnabledChange feeds), so
+ * "platform mute wins" is tested without a pause. Reaches into the pinned Bridge 2.3.1 runtime
+ * (Peek & Find helpers.ts).
+ */
+export async function setSdkAudio(page: Page, enabled: boolean): Promise<void> {
+  await page.evaluate((on) => {
+    const w = window as unknown as {
+      bridge: { platform: { _platformBridge: { _setAudioState: (v: boolean) => void } } };
+    };
+    w.bridge.platform._platformBridge._setAudioState(on);
+  }, enabled);
+}

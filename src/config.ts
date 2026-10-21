@@ -68,16 +68,65 @@ export const BEVEL_DARK = 0.3;
 /** The board panel reaches this far past the snack, with these rounded corners. */
 export const BOARD_PAD = 16;
 export const BOARD_RADIUS = 24;
-/** Slot frame line; the light ring around every muncher disc (ink munchers on the dark page). */
+/**
+ * The win grows the board (WIN_FACE_SCALE) only as far as this many design px short of anything
+ * next to it and of the canvas edge (`winScale` in src/game/layout.ts, tests/layout.test.ts).
+ */
+export const BOARD_GROW_CLEAR = 2;
+/** Slot frame line and corner radius (a rounded plate per slot). */
 export const SLOT_STROKE = 6;
-export const MUNCHER_RING = 5;
+export const SLOT_RADIUS = 22;
+/** The ink muncher's light ring (it would vanish on the dark page without it, Epic 3). */
 export const COLOR_MUNCHER_RING = 0xd8dce8;
-/** Appetite digits: this share of the disc size, with a dark stroke. */
-export const LABEL_FONT_SHARE = 0.42;
-export const LABEL_STROKE = 8;
+/**
+ * The "+N" chip (the munchers past a den's last place): its digits are this much larger than a
+ * queued muncher's appetite digit (DIGIT_QUEUE in src/game/muncher-art.ts), never under
+ * DIGIT_MIN_PX (tests/textures.test.ts).
+ */
+export const CHIP_FONT_GROW = 1.2;
+/** Dark stroke around the appetite digits. */
 export const COLOR_LABEL_STROKE = '#1b1f2a';
+
+// ---- muncher art (Epic 4; shapes in src/game/muncher-art.ts) ---------------------------------
+
+/**
+ * Muncher textures are drawn at Boot at this size: the largest muncher on screen (123 design px
+ * on 9:16) with its belly swelled 30 % and a full-meal bounce of 1.2 stays at or under it.
+ */
+export const MUNCHER_TEX_PX = 192;
+/** Appetite digit stroke, as a share of its font size. */
+export const DIGIT_STROKE_SHARE = 0.22;
+/** No appetite digit is drawn smaller than this (design px; tests/textures.test.ts). */
+export const DIGIT_MIN_PX = 30;
+/** The squash and the belly swell pivot at the feet: this far below the muncher's centre. */
+export const MUNCHER_FOOT_SHARE = 0.45;
+/** Burp puffs. */
+export const COLOR_PUFF = 0xe9ecf3;
 /** HUD level number. */
 export const LEVEL_FONT_PX = 64;
+/** At most three digits (GDD §9) at LEVEL_FONT_PX fit this box, left-aligned on `layout.level`. */
+export const LEVEL_LABEL_W = 120;
+export const LEVEL_LABEL_H = 90;
+
+// ---- effect pools and audio plumbing (src/game/fx.ts, src/game/audio.ts) ----------------------
+
+/**
+ * Effect pools, created with the board: what a level needs at its normal pace (a flight lives
+ * 200 ms and one leaves every 70 ms, three crumbs each live 280 ms, a full meal puffs three
+ * clouds), with room. The confetti pool holds CONFETTI_COUNT (src/game/feel.ts).
+ */
+export const FX_POOL_FLIGHTS = 8;
+export const FX_POOL_CRUMBS = 24;
+export const FX_POOL_PUFFS = 9;
+/**
+ * The bite tick plays many times a second: from this many reused sound instances, round-robin,
+ * instead of a new sound object (and its audio nodes) per play.
+ */
+export const SFX_POOL_BITE = 4;
+/** Dev audio state: the last this many SFX keys started. */
+export const AUDIO_DEBUG_HISTORY = 12;
+/** Samples per read of the master-bus level (the e2e tells "playing" from "audible" with it). */
+export const AUDIO_ANALYSER_FFT = 2048;
 /** Win and lose panels: page dim and the round button. */
 export const PANEL_DIM = 0.6;
 export const PANEL_BUTTON_R = 110;
